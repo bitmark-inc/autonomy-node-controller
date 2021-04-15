@@ -1,0 +1,15 @@
+log:
+  level: info
+
+messaging:
+  db_path: "./axolotl.db"
+  endpoint: "https://autonomy-wallet.bitmark.com"
+
+bitcoind:
+  rpcconnect: http://localhost:8332
+  rpcuser: username
+  rpcpassword: password
+
+owner_did: <pod_owner_did>
+binding_file: "./OWNER_BOUND"
+keyfile: ./keyfile.json

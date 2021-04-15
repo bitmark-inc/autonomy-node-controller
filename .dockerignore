@@ -1,0 +1,6 @@
+config.yaml
+*.json
+*.db
+
+bin/**
+commands/**

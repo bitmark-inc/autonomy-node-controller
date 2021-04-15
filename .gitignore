@@ -1,0 +1,6 @@
+bin
+config.yaml
+*.json
+*.db
+
+commands/binding-tool/binding-tool

@@ -1,0 +1,10 @@
+log:
+  level: info
+messaging:
+  store:
+    leveldb_path: axolotl.db
+  server_url: http://127.0.0.1
+  client_jwt:
+  send_test:
+    destination:
+    delay: 5
