@@ -42,7 +42,7 @@ func (p *PodIdentity) Auth() (string, error) {
 		"signature": signature,
 		"requester": p.DID,
 		"timestamp": nowString,
-		"Role":      "autonomy-node",
+		"role":      "autonomy-node",
 	}
 
 	var body bytes.Buffer
