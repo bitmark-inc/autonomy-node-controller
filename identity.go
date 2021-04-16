@@ -32,7 +32,7 @@ type PodIdentity struct {
 // and get a JWT token for sending and receiving messages
 func (p *PodIdentity) Auth() (string, error) {
 	nowString := fmt.Sprint(int64(time.Now().UnixNano()) / int64(time.Millisecond))
-	signature, err := key.Sign(p.PrivateKey, nowString+"autonomy-node")
+	signature, err := key.Sign(p.PrivateKey, nowString+"autonomy-pod")
 	if err != nil {
 		log.WithField("signature", signature).Error("sign error")
 		return "", err
@@ -42,7 +42,7 @@ func (p *PodIdentity) Auth() (string, error) {
 		"signature": signature,
 		"requester": p.DID,
 		"timestamp": nowString,
-		"role":      "autonomy-node",
+		"role":      "autonomy-pod",
 	}
 
 	var body bytes.Buffer
