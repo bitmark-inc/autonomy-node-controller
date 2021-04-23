@@ -13,3 +13,4 @@ bitcoind:
 owner_did: <pod_owner_did>
 binding_file: "./OWNER_BOUND"
 keyfile: ./keyfile.json
+gordian_master_key_file: xxx

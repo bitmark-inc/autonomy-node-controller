@@ -8,8 +8,12 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"net/url"
+	"strings"
 	"time"
 
+	"github.com/btcsuite/btcd/btcjson"
+	"github.com/btcsuite/btcd/rpcclient"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
 
@@ -30,6 +34,10 @@ type BindACKParams struct {
 type BitcoindRPCParams struct {
 	Method string          `json:"method"`
 	Params json.RawMessage `json:"params"`
+}
+
+type CreateWalletRPCParams struct {
+	Descriptor string `json:"descriptor"`
 }
 
 type Controller struct {
@@ -64,6 +72,17 @@ func (c *Controller) Process(m *messaging.Message) [][]byte {
 		log.WithError(err).Error("fail to decode content")
 	}
 
+	if req.Command != "bind" && req.Command != "bind_ack" {
+		bound, err := c.IsPodBound()
+		if err != nil {
+			return CommandResponse{ErrorResponse(err)}
+		}
+
+		if !bound {
+			return CommandResponse{ErrorResponse(err)}
+		}
+	}
+
 	log.WithField("command request", req).Debug("parse command")
 	switch req.Command {
 	case "bind":
@@ -84,6 +103,14 @@ func (c *Controller) Process(m *messaging.Message) [][]byte {
 		}
 
 		resp := c.bitcoinRPC(m.Source, params)
+		return CommandResponse{resp}
+	case "createwallet":
+		var params CreateWalletRPCParams
+		if err := json.Unmarshal(req.Args, &params); err != nil {
+			return CommandResponse{ErrorResponse(fmt.Errorf("bad request for bitcoind. error: %s", err.Error()))}
+		}
+
+		resp := c.createWallet(params.Descriptor)
 		return CommandResponse{resp}
 	default:
 		return CommandResponse{ErrorResponse(fmt.Errorf("unsupported command"))}
@@ -165,15 +192,6 @@ func (c *Controller) bindACK(did string, ackParams BindACKParams) []byte {
 
 // bitcoinRPC runs bitcoind rpc for clients
 func (c *Controller) bitcoinRPC(did string, bitcoindParams BitcoindRPCParams) []byte {
-	bound, err := c.IsPodBound()
-	if err != nil {
-		return ErrorResponse(err)
-	}
-
-	if !bound {
-		return ErrorResponse(fmt.Errorf("node is not bound"))
-	}
-
 	var reqBody bytes.Buffer
 
 	if err := json.NewEncoder(&reqBody).Encode(bitcoindParams); err != nil {
@@ -205,4 +223,149 @@ func (c *Controller) bitcoinRPC(did string, bitcoindParams BitcoindRPCParams) []
 		"statusCode":   resp.StatusCode,
 		"responseBody": responseBody,
 	})
+}
+
+// createWallet creates a new descriptor wallet if it does not exist
+// according to the semi-finished descriptor (already including the platform and recovery key information).
+// An example of an incomplete descriptor:
+//
+// wsh(sortedmulti(2,[119dbcab/48h/1h/0h/2h]tpubDFYr9xD4WtT3yDBdX2qT2j2v6ZruqccwPKFwLguuJL99bWBrk6D2Lv1aPpRbFnw1sQUU9DM7ScMAkPRJqR1iXKhWMBNMAJ45QCTuvSZbzzv/0/*,[e650dc93/48h/1h/0h/2h]tpubDEijNAeHVNmm6wHwspPv4fV8mRkoMimeVCk47dExpN9e17jFti12BdjzL8MX17GvKEekRzknNuDoLy1Q8fujYfsWfCvjwYmjjENUpzwDy6B/0/*,[<fingerprint>/48h/1h/0h/2h]<xpub>/0/*))
+func (c *Controller) createWallet(incompleteDescriptor string) []byte {
+	derivationPath := utils.ExtractGordianKeyDerivationPath(incompleteDescriptor)
+	if derivationPath == "" {
+		return ErrorResponse(fmt.Errorf("gordian key derivation path not found"))
+	}
+
+	path, err := utils.ParseDerivationPath(derivationPath)
+	if err != nil {
+		return ErrorResponse(err)
+	}
+
+	u, err := url.Parse(viper.GetString("bitcoind.rpcconnect"))
+	if err != nil {
+		return ErrorResponse(err)
+	}
+
+	connCfg := &rpcclient.ConnConfig{
+		Host:         fmt.Sprintf("%s:%s", u.Hostname(), u.Port()),
+		User:         viper.GetString("bitcoind.rpcuser"),
+		Pass:         viper.GetString("bitcoind.rpcpassword"),
+		HTTPPostMode: true,
+		DisableTLS:   true,
+	}
+	client, err := rpcclient.New(connCfg, nil)
+	if err != nil {
+		return ErrorResponse(err)
+	}
+	defer client.Shutdown()
+
+	shouldCreateWallet := false
+	shouldImportDescriptors := false
+	walletInfo, err := client.GetWalletInfo()
+	if err != nil {
+		if jerr, ok := err.(*btcjson.RPCError); ok {
+			switch jerr.Code {
+			case btcjson.ErrRPCWalletNotFound:
+				shouldCreateWallet = true
+				shouldCreateWallet = true
+			default:
+				return ErrorResponse(err)
+			}
+		} else {
+			return ErrorResponse(err)
+		}
+	} else {
+		if walletInfo.KeyPoolSize == 0 && *walletInfo.KeyPoolSizeHDInternal == 0 {
+			shouldImportDescriptors = true
+		}
+	}
+
+	blockchainInfo, err := client.GetBlockChainInfo()
+	if err != nil {
+		return ErrorResponse(err)
+	}
+	keyFilePath := viper.GetString("gordian_master_key_file")
+	masterKey, err := createOrLoadMasterKey(blockchainInfo.Chain, keyFilePath)
+	if err != nil {
+		return ErrorResponse(err)
+	}
+	masterFingerprint, err := computeFingerprint(masterKey)
+	if err != nil {
+		return ErrorResponse(err)
+	}
+	gordianPrivateKey := masterKey
+	for _, i := range path {
+		gordianPrivateKey, err = gordianPrivateKey.Derive(i)
+		if err != nil {
+			return ErrorResponse(err)
+		}
+	}
+	gordianPublicKey, err := gordianPrivateKey.Neuter()
+	if err != nil {
+		return ErrorResponse(err)
+	}
+
+	if shouldCreateWallet {
+		walletName, _ := json.Marshal(btcjson.String("gordian"))
+		passphrase, _ := json.Marshal(btcjson.String(""))
+		t, _ := json.Marshal(btcjson.Bool(true))
+		f, _ := json.Marshal(btcjson.Bool(false))
+		createWalletParams := []json.RawMessage{
+			walletName, // wallet_name
+			f,          // disable_private_keys
+			t,          // blank
+			passphrase, // passphrase
+			t,          // avoid_reuse
+			t,          // descriptors
+			f,          // load_on_startup
+		}
+
+		if _, err := client.RawRequest("createwallet", createWalletParams); err != nil {
+			return ErrorResponse(err)
+		}
+	}
+
+	if shouldImportDescriptors {
+		importedDescriptorReplacer := strings.NewReplacer(
+			"<fingerprint>", masterFingerprint,
+			"<xpub>", gordianPrivateKey.String(),
+		)
+		externalDescriptorWithoutChecksum := importedDescriptorReplacer.Replace(incompleteDescriptor)
+		externalDescriptorInfo, err := client.GetDescriptorInfo(externalDescriptorWithoutChecksum)
+		if err != nil {
+			return ErrorResponse(err)
+		}
+
+		internalDescriptorWithoutChecksum := strings.ReplaceAll(externalDescriptorWithoutChecksum, "/0/*", "/1/*")
+		internalDescriptorInfo, err := client.GetDescriptorInfo(internalDescriptorWithoutChecksum)
+		if err != nil {
+			return ErrorResponse(err)
+		}
+
+		descriptors := []map[string]interface{}{
+			{
+				"desc":      fmt.Sprintf("%s#%s", externalDescriptorWithoutChecksum, externalDescriptorInfo.Checksum),
+				"active":    true,
+				"timestamp": "now",
+				"internal":  false,
+			},
+			{
+				"desc":      fmt.Sprintf("%s#%s", internalDescriptorWithoutChecksum, internalDescriptorInfo.Checksum),
+				"active":    true,
+				"timestamp": "now",
+				"internal":  true,
+			},
+		}
+		b, _ := json.Marshal(descriptors)
+		if _, err := client.RawRequest("importdescriptors", []json.RawMessage{b}); err != nil {
+			return ErrorResponse(err)
+		}
+	}
+
+	accountMapDescriptorReplacer := strings.NewReplacer(
+		"<fingerprint>", masterFingerprint,
+		"<xpub>", gordianPublicKey.String(),
+	)
+	gordianWalletDescriptor := accountMapDescriptorReplacer.Replace(incompleteDescriptor)
+	return ObjectResponse(map[string]interface{}{"descriptor": gordianWalletDescriptor})
 }

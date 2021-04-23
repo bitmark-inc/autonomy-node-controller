@@ -26,6 +26,10 @@ type BindResponse struct {
 	Signature string `json:"signature"`
 }
 
+type CreateWalletResponse struct {
+	Descriptor string `json:"descriptor"`
+}
+
 // Sign returns the signature of a message using the given private key
 func Sign(privateKey []byte, message string) (string, error) {
 	hash := sha256.Sum256([]byte(message))
@@ -128,6 +132,39 @@ func bitcoinCommand(wsClient *messaging.WSMessagingClient, respCh <-chan *messag
 	return bitcoindResp, nil
 }
 
+func createWallet(wsClient *messaging.WSMessagingClient, respCh <-chan *messaging.Message, podDID, incompleteDescriptor string) (string, error) {
+	req := map[string]interface{}{
+		"id":      "test",
+		"command": "createwallet",
+		"args": map[string]string{
+			"descriptor": incompleteDescriptor,
+		},
+	}
+
+	b, err := json.Marshal(req)
+	if err != nil {
+		return "", err
+	}
+
+	wsClient.SendWhisperMessages(podDID, 0, [][]byte{b})
+	r := <-respCh
+
+	var resp struct {
+		Error string               `json:"error"`
+		Data  CreateWalletResponse `json:"data"`
+	}
+
+	if err := json.Unmarshal(r.Content, &resp); err != nil {
+		return "", err
+	}
+
+	if resp.Error != "" {
+		return "", fmt.Errorf(resp.Error)
+	}
+
+	return resp.Data.Descriptor, nil
+}
+
 func main() {
 	var configFile string
 	flag.StringVar(&configFile, "c", "./config.yaml", "[optional] path of configuration file")
@@ -177,7 +214,7 @@ func main() {
 
 	msgCh := wsClient.WhisperMessages()
 
-	privateKey, err := hex.DecodeString("61900f1b361bda95b318a219efda0685c9209f703f8638c269506860271c26d9")
+	privateKey, err := hex.DecodeString(viper.GetString("auth_key"))
 	if err != nil {
 		panic("unable to read private key")
 	}
@@ -216,6 +253,19 @@ func main() {
 			}
 
 			log.WithField("resp", string(resp)).Info("bitcoin response")
+		case "createwallet":
+			if len(commands) != 2 {
+				flag.Usage()
+				break
+			}
+
+			resp, err := createWallet(wsClient, msgCh, podDID, commands[1])
+			if err != nil {
+				log.WithError(err).Panic("createwallet request fail")
+				os.Exit(1)
+			}
+
+			log.WithField("resp", string(resp)).Info("gordian wallet descriptor")
 		default:
 			flag.Usage()
 		}
