@@ -10,7 +10,7 @@ import (
 )
 
 func ExtractGordianKeyDerivationPath(incompleteDescriptor string) string {
-	var re = regexp.MustCompile(`(?m)\[\<fingerprint\>(.+)\]`)
+	re := regexp.MustCompile(`(?m)\[\<fingerprint\>(.+)\]`)
 	match := re.FindStringSubmatch(incompleteDescriptor)
 	if len(match) < 2 {
 		return ""
