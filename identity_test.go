@@ -72,7 +72,7 @@ func (suite *PodIdentityTestSuite) TestCreateOrLoadPodIdentityWithExistingKey() 
 
 func (suite *PodIdentityTestSuite) TestCreateOrLoadPodIdentityWithoutExistingKey() {
 	i, created, err := CreateOrLoadPodIdentityFromKey(suite.KeyFile)
-	suite.False(created)
+	suite.True(created)
 	suite.NoError(err)
 
 	keyBytes, err := os.ReadFile(suite.KeyFile)
