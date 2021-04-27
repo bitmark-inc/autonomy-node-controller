@@ -8,6 +8,7 @@ on:
 jobs:
   main:
     name: Test codebase
+    environment: Test
     runs-on: ubuntu-latest
     steps:
     - name: Update apt-get
@@ -24,3 +25,11 @@ jobs:
       env:
         GOPROXY: "https://proxy.golang.org"
       run: go test -v ./...
+    - name: Slack Notification
+      uses: rtCamp/action-slack-notify@v2
+      if: ${{ failure() }}
+      env:
+        SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}
+        SLACK_COLOR: ${{ job.status }} # or a specific color like 'green' or '#ff00ff'
+        SLACK_FOOTER: From ${{ github.repository }}
+        SLACK_WEBHOOK: ${{ secrets.SLACK_ACTION_REPORT_WEBHOOK }}
