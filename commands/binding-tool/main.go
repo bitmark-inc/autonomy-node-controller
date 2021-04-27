@@ -165,6 +165,37 @@ func createWallet(wsClient *messaging.WSMessagingClient, respCh <-chan *messagin
 	return resp.Data.Descriptor, nil
 }
 
+func sendCommand(wsClient *messaging.WSMessagingClient, respCh <-chan *messaging.Message, podDID, commad string, args map[string]interface{}) (json.RawMessage, error) {
+	req := map[string]interface{}{
+		"id":      "test",
+		"command": commad,
+		"args":    args,
+	}
+
+	b, err := json.Marshal(req)
+	if err != nil {
+		return nil, err
+	}
+
+	wsClient.SendWhisperMessages(podDID, 0, [][]byte{b})
+	r := <-respCh
+
+	var resp struct {
+		Error string          `json:"error"`
+		Data  json.RawMessage `json:"data"`
+	}
+
+	if err := json.Unmarshal(r.Content, &resp); err != nil {
+		return nil, err
+	}
+
+	if resp.Error != "" {
+		return nil, fmt.Errorf(resp.Error)
+	}
+
+	return resp.Data, nil
+}
+
 func main() {
 	var configFile string
 	flag.StringVar(&configFile, "c", "./config.yaml", "[optional] path of configuration file")
@@ -267,7 +298,21 @@ func main() {
 
 			log.WithField("resp", string(resp)).Info("gordian wallet descriptor")
 		default:
-			flag.Usage()
+			args := make(map[string]interface{})
+			if len(commands) > 1 {
+				if err := json.Unmarshal([]byte(commands[1]), &args); err != nil {
+					log.WithError(err).Panic("invalid args")
+					os.Exit(1)
+				}
+			}
+
+			resp, err := sendCommand(wsClient, msgCh, podDID, commands[0], args)
+			if err != nil {
+				log.WithField("command", commands[0]).WithError(err).Panic("request fail")
+				os.Exit(1)
+			}
+
+			log.WithField("command", commands[0]).Info(string(resp))
 		}
 
 		os.Exit(0)

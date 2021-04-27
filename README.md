@@ -23,3 +23,9 @@ First, create a `config.yaml` by copy `config.yaml.sample` and configure it prop
 ```
 make run-pod-controller
 ```
+
+## Generate mock interfaces for testing
+
+```
+mockgen -source=store.go -destination store_mock.go -package main
+```

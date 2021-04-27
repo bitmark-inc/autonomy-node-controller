@@ -40,12 +40,22 @@ type CreateWalletRPCParams struct {
 	Descriptor string `json:"descriptor"`
 }
 
+type UpdateMemberAccessModeRPCParams struct {
+	MemberDID  string     `json:"member_did"`
+	AccessMode AccessMode `json:"access_mode"`
+}
+
+type RemoveMemberAccessModeRPCParams struct {
+	MemberDID string `json:"member_did"`
+}
+
 type Controller struct {
 	ownerDID     string
 	bindingNonce string
 	bindingFile  string
 	httpClient   *http.Client
 	Identity     *PodIdentity
+	store        Store
 }
 
 func NewController(ownerDID string, i *PodIdentity) *Controller {
@@ -56,6 +66,7 @@ func NewController(ownerDID string, i *PodIdentity) *Controller {
 			Timeout: 10 * time.Second,
 		},
 		Identity: i,
+		store:    NewBoltStore(viper.GetString("store_path")),
 	}
 }
 
@@ -83,6 +94,10 @@ func (c *Controller) Process(m *messaging.Message) [][]byte {
 		}
 	}
 
+	if req.Command != "bitcoind" && m.Source != c.ownerDID {
+		return CommandResponse{ErrorResponse(errors.New("no access"))}
+	}
+
 	log.WithField("command request", req).Debug("parse command")
 	switch req.Command {
 	case "bind":
@@ -96,6 +111,30 @@ func (c *Controller) Process(m *messaging.Message) [][]byte {
 
 		resp := c.bindACK(m.Source, params)
 		return CommandResponse{resp}
+	case "createwallet":
+		var params CreateWalletRPCParams
+		if err := json.Unmarshal(req.Args, &params); err != nil {
+			return CommandResponse{ErrorResponse(fmt.Errorf("bad request for createwallet. error: %s", err.Error()))}
+		}
+
+		resp := c.createWallet(params.Descriptor)
+		return CommandResponse{resp}
+	case "setmember":
+		var params UpdateMemberAccessModeRPCParams
+		if err := json.Unmarshal(req.Args, &params); err != nil {
+			return CommandResponse{ErrorResponse(fmt.Errorf("bad request for setmember. error: %s", err.Error()))}
+		}
+
+		resp := c.setMember(params.MemberDID, params.AccessMode)
+		return CommandResponse{resp}
+	case "removemember":
+		var params RemoveMemberAccessModeRPCParams
+		if err := json.Unmarshal(req.Args, &params); err != nil {
+			return CommandResponse{ErrorResponse(fmt.Errorf("bad request for removemember. error: %s", err.Error()))}
+		}
+
+		resp := c.removeMember(params.MemberDID)
+		return CommandResponse{resp}
 	case "bitcoind":
 		var params BitcoindRPCParams
 		if err := json.Unmarshal(req.Args, &params); err != nil {
@@ -103,14 +142,6 @@ func (c *Controller) Process(m *messaging.Message) [][]byte {
 		}
 
 		resp := c.bitcoinRPC(m.Source, params)
-		return CommandResponse{resp}
-	case "createwallet":
-		var params CreateWalletRPCParams
-		if err := json.Unmarshal(req.Args, &params); err != nil {
-			return CommandResponse{ErrorResponse(fmt.Errorf("bad request for bitcoind. error: %s", err.Error()))}
-		}
-
-		resp := c.createWallet(params.Descriptor)
 		return CommandResponse{resp}
 	default:
 		return CommandResponse{ErrorResponse(fmt.Errorf("unsupported command"))}
@@ -192,6 +223,10 @@ func (c *Controller) bindACK(did string, ackParams BindACKParams) []byte {
 
 // bitcoinRPC runs bitcoind rpc for clients
 func (c *Controller) bitcoinRPC(did string, bitcoindParams BitcoindRPCParams) []byte {
+	if !c.HasBitcoinRPCAccess(did, bitcoindParams.Method) {
+		return ErrorResponse(errors.New("not allowed to use this RPC"))
+	}
+
 	var reqBody bytes.Buffer
 
 	if err := json.NewEncoder(&reqBody).Encode(bitcoindParams); err != nil {
@@ -368,4 +403,18 @@ func (c *Controller) createWallet(incompleteDescriptor string) []byte {
 	)
 	gordianWalletDescriptor := accountMapDescriptorReplacer.Replace(incompleteDescriptor)
 	return ObjectResponse(map[string]interface{}{"descriptor": gordianWalletDescriptor})
+}
+
+func (c *Controller) setMember(memberDID string, accessMode AccessMode) []byte {
+	if err := c.store.UpdateMemberAccessMode(memberDID, accessMode); err != nil {
+		return ErrorResponse(err)
+	}
+	return ObjectResponse(map[string]string{"status": "ok"})
+}
+
+func (c *Controller) removeMember(memberDID string) []byte {
+	if err := c.store.RemoveMember(memberDID); err != nil {
+		return ErrorResponse(err)
+	}
+	return ObjectResponse(map[string]string{"status": "ok"})
 }

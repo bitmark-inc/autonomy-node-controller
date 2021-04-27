@@ -5,8 +5,10 @@ import (
 	"os"
 	"testing"
 
-	"github.com/bitmark-inc/autonomy-pod-controller/key"
+	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/suite"
+
+	"github.com/bitmark-inc/autonomy-pod-controller/key"
 )
 
 const BindingFile = "TEST_OWNER_BOUND"
@@ -154,6 +156,59 @@ func (suite *ControllerTestSuite) TestBindAckWithInvalidSignature() {
 	var err string
 	suite.NoError(json.Unmarshal(resp["error"], &err))
 	suite.Equal(err, "invalid binding ack signature")
+}
+
+func (suite *ControllerTestSuite) TestHasBitcoinRPCAccess() {
+	ownerDID := "did:key:zQ3shvD5cZSLggSCiu4jmF3jRY6GMUb7zvwChfhYQGJfQudJE"
+	memberWithLimitedAccessDID := "did:key:zQ3shrG4MGtHFTq4BMaPtWRysMuTXVB5H2G4upbQzvk9PyANM"
+	memberWithMinimalAccessDID := "did:key:zQ3shokFTS3brHcDQrn82RUDfCZESWL1ZdCEJwekUDPQiYBme"
+	strangerDID := "did:key:zQ3shvtd8SgRF7UBHzJsnH1Qu2MKgEMBRujEfr4wp5a171Vv4"
+
+	mockCtl := gomock.NewController(suite.T())
+	defer mockCtl.Finish()
+	mockedStore := NewMockStore(mockCtl)
+	mockedStore.EXPECT().AccessMode(memberWithLimitedAccessDID).AnyTimes().Return(AccessModeLimited)
+	mockedStore.EXPECT().AccessMode(memberWithMinimalAccessDID).AnyTimes().Return(AccessModeMinimal)
+	mockedStore.EXPECT().AccessMode(strangerDID).AnyTimes().Return(AccessModeNotApplicant)
+
+	c := Controller{
+		bindingFile: BindingFile,
+		ownerDID:    ownerDID,
+		Identity:    suite.Identity,
+		store:       mockedStore,
+	}
+
+	access := map[string]map[string]bool{
+		ownerDID: {
+			"unloadwallet":       false,
+			"sendrawtransaction": true,
+			"getbalances":        true,
+			"getblockchaininfo":  true,
+		},
+		memberWithLimitedAccessDID: {
+			"unloadwallet":       false,
+			"sendrawtransaction": false,
+			"getbalances":        true,
+			"getblockchaininfo":  true,
+		},
+		memberWithMinimalAccessDID: {
+			"unloadwallet":       false,
+			"sendrawtransaction": false,
+			"getbalances":        false,
+			"getblockchaininfo":  true,
+		},
+		strangerDID: {
+			"unloadwallet":       false,
+			"sendrawtransaction": false,
+			"getbalances":        false,
+			"getblockchaininfo":  false,
+		},
+	}
+	for did, access := range access {
+		for rpc, allowed := range access {
+			suite.Equal(allowed, c.HasBitcoinRPCAccess(did, rpc))
+		}
+	}
 }
 
 func TestControllerTestSuite(t *testing.T) {
