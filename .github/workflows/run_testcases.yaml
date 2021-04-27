@@ -1,0 +1,26 @@
+name: Run test cases
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+jobs:
+  main:
+    name: Test codebase
+    runs-on: ubuntu-latest
+    steps:
+    - name: Update apt-get
+      run: sudo apt-get -q update
+    - name: Install latest ca-certificates
+      run: sudo apt-get -yq install ca-certificates build-essential
+    - name: Setup Go 1.16
+      uses: actions/setup-go@v1
+      with:
+        go-version: 1.16
+    - name: Check out source code
+      uses: actions/checkout@v1
+    - name: Run test cases
+      env:
+        GOPROXY: "https://proxy.golang.org"
+      run: go test -v ./...
