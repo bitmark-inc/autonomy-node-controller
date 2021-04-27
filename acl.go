@@ -10,33 +10,46 @@ const (
 )
 
 var (
-	fullAccessBlockList = map[string]bool{
+	fullAccessBitcoinRPCBlockList = map[string]bool{
 		"unloadwallet": true,
 	}
-	limitedAccessBlockList = map[string]bool{
+	limitedAccessBitcoinRPCBlockList = map[string]bool{
 		"unloadwallet":       true,
 		"sendrawtransaction": true,
 	}
-	minimalAccessBlockList = map[string]bool{
+	minimalAccessBitcoinRPCBlockList = map[string]bool{
 		"unloadwallet":       true,
 		"sendrawtransaction": true,
 		"getbalances":        true,
 	}
 
 	rocBlockList = map[AccessMode]map[string]bool{
-		AccessModeFull:    fullAccessBlockList,
-		AccessModeLimited: limitedAccessBlockList,
-		AccessModeMinimal: minimalAccessBlockList,
+		AccessModeFull:    fullAccessBitcoinRPCBlockList,
+		AccessModeLimited: limitedAccessBitcoinRPCBlockList,
+		AccessModeMinimal: minimalAccessBitcoinRPCBlockList,
 	}
 )
 
+func (c *Controller) HasRPCAccess(did, command string) bool {
+	switch command {
+	case "bitcoind":
+		return true
+	default:
+		if did == c.ownerDID {
+			return true
+		}
+		return false
+	}
+}
+
 func (c *Controller) HasBitcoinRPCAccess(did, rpcCommand string) bool {
+	var mode AccessMode
 	if did == c.ownerDID {
-		_, blocked := fullAccessBlockList[rpcCommand]
-		return !blocked
+		mode = AccessModeFull
+	} else {
+		mode = c.store.AccessMode(did)
 	}
 
-	mode := c.store.AccessMode(did)
 	if mode == AccessModeNotApplicant {
 		return false
 	}

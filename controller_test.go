@@ -158,6 +158,34 @@ func (suite *ControllerTestSuite) TestBindAckWithInvalidSignature() {
 	suite.Equal(err, "invalid binding ack signature")
 }
 
+func (suite *ControllerTestSuite) TestHasRPCAccess() {
+	ownerDID := "did:key:zQ3shvD5cZSLggSCiu4jmF3jRY6GMUb7zvwChfhYQGJfQudJE"
+	memberDID := "did:key:zQ3shrG4MGtHFTq4BMaPtWRysMuTXVB5H2G4upbQzvk9PyANM"
+
+	c := Controller{
+		bindingFile: BindingFile,
+		ownerDID:    ownerDID,
+		Identity:    suite.Identity,
+	}
+
+	access := map[string]map[string]bool{
+		ownerDID: {
+			"createwallet": true,
+			"setmember":    true,
+			"removemember": true,
+			"bitcoind":     true,
+		},
+		memberDID: {
+			"bitcoind": true,
+		},
+	}
+	for did, access := range access {
+		for rpc, allowed := range access {
+			suite.Equal(allowed, c.HasRPCAccess(did, rpc))
+		}
+	}
+}
+
 func (suite *ControllerTestSuite) TestHasBitcoinRPCAccess() {
 	ownerDID := "did:key:zQ3shvD5cZSLggSCiu4jmF3jRY6GMUb7zvwChfhYQGJfQudJE"
 	memberWithLimitedAccessDID := "did:key:zQ3shrG4MGtHFTq4BMaPtWRysMuTXVB5H2G4upbQzvk9PyANM"
@@ -180,29 +208,18 @@ func (suite *ControllerTestSuite) TestHasBitcoinRPCAccess() {
 
 	access := map[string]map[string]bool{
 		ownerDID: {
-			"unloadwallet":       false,
 			"sendrawtransaction": true,
 			"getbalances":        true,
 			"getblockchaininfo":  true,
 		},
 		memberWithLimitedAccessDID: {
-			"unloadwallet":       false,
-			"sendrawtransaction": false,
-			"getbalances":        true,
-			"getblockchaininfo":  true,
+			"getbalances":       true,
+			"getblockchaininfo": true,
 		},
 		memberWithMinimalAccessDID: {
-			"unloadwallet":       false,
-			"sendrawtransaction": false,
-			"getbalances":        false,
-			"getblockchaininfo":  true,
+			"getblockchaininfo": true,
 		},
-		strangerDID: {
-			"unloadwallet":       false,
-			"sendrawtransaction": false,
-			"getbalances":        false,
-			"getblockchaininfo":  false,
-		},
+		strangerDID: {},
 	}
 	for did, access := range access {
 		for rpc, allowed := range access {

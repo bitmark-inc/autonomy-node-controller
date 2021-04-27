@@ -94,8 +94,8 @@ func (c *Controller) Process(m *messaging.Message) [][]byte {
 		}
 	}
 
-	if req.Command != "bitcoind" && m.Source != c.ownerDID {
-		return CommandResponse{ErrorResponse(errors.New("no access"))}
+	if !c.HasRPCAccess(m.Source, req.Command) {
+		return CommandResponse{ErrorResponse(errors.New("not allowed to use this RPC"))}
 	}
 
 	log.WithField("command request", req).Debug("parse command")
