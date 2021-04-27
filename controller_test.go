@@ -156,30 +156,6 @@ func (suite *ControllerTestSuite) TestBindAckWithInvalidSignature() {
 	suite.Equal(err, "invalid binding ack signature")
 }
 
-func (suite *ControllerTestSuite) TestBitcoinRPCWithoutBinding() {
-	ownerDID := "did:key:zQ3shvD5cZSLggSCiu4jmF3jRY6GMUb7zvwChfhYQGJfQudJE"
-
-	c := Controller{
-		bindingFile: BindingFile,
-		ownerDID:    ownerDID,
-		Identity:    suite.Identity,
-	}
-
-	b := c.bitcoinRPC(ownerDID, BitcoindRPCParams{
-		Method: "getblockchaininfo",
-		Params: json.RawMessage(`[]`),
-	})
-
-	resp := map[string]json.RawMessage{}
-	suite.NoError(json.Unmarshal(b, &resp))
-	suite.Nil(resp["data"])
-	suite.NotNil(resp["error"])
-
-	var err string
-	suite.NoError(json.Unmarshal(resp["error"], &err))
-	suite.Equal(err, "node is not bound")
-}
-
 func TestControllerTestSuite(t *testing.T) {
 	i, err := NewPodIdentity()
 	if err != nil {
