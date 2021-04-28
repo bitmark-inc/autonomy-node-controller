@@ -111,7 +111,7 @@ func (c *Controller) Process(m *messaging.Message) [][]byte {
 
 		resp := c.bindACK(m.Source, params)
 		return CommandResponse{resp}
-	case "createwallet":
+	case "create_wallet":
 		var params CreateWalletRPCParams
 		if err := json.Unmarshal(req.Args, &params); err != nil {
 			return CommandResponse{ErrorResponse(fmt.Errorf("bad request for createwallet. error: %s", err.Error()))}
@@ -119,7 +119,7 @@ func (c *Controller) Process(m *messaging.Message) [][]byte {
 
 		resp := c.createWallet(params.Descriptor)
 		return CommandResponse{resp}
-	case "setmember":
+	case "set_member":
 		var params UpdateMemberAccessModeRPCParams
 		if err := json.Unmarshal(req.Args, &params); err != nil {
 			return CommandResponse{ErrorResponse(fmt.Errorf("bad request for setmember. error: %s", err.Error()))}
@@ -127,7 +127,7 @@ func (c *Controller) Process(m *messaging.Message) [][]byte {
 
 		resp := c.setMember(params.MemberDID, params.AccessMode)
 		return CommandResponse{resp}
-	case "removemember":
+	case "remove_member":
 		var params RemoveMemberAccessModeRPCParams
 		if err := json.Unmarshal(req.Args, &params); err != nil {
 			return CommandResponse{ErrorResponse(fmt.Errorf("bad request for removemember. error: %s", err.Error()))}

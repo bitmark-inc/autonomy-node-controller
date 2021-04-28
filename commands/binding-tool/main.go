@@ -284,7 +284,7 @@ func main() {
 			}
 
 			log.WithField("resp", string(resp)).Info("bitcoin response")
-		case "createwallet":
+		case "create_wallet":
 			if len(commands) != 2 {
 				flag.Usage()
 				break

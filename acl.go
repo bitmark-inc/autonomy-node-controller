@@ -23,7 +23,9 @@ var (
 		"getbalances":        true,
 	}
 
-	rocBlockList = map[AccessMode]map[string]bool{
+	// TODO: we might need the allow list in the future
+	// once we know in more detail what the members will be allowed to access in the Group Pod
+	rpcBlockList = map[AccessMode]map[string]bool{
 		AccessModeFull:    fullAccessBitcoinRPCBlockList,
 		AccessModeLimited: limitedAccessBitcoinRPCBlockList,
 		AccessModeMinimal: minimalAccessBitcoinRPCBlockList,
@@ -42,6 +44,7 @@ func (c *Controller) HasRPCAccess(did, command string) bool {
 	}
 }
 
+// TODO: this method could be integrated in to `HasRPCAccess`
 func (c *Controller) HasBitcoinRPCAccess(did, rpcCommand string) bool {
 	var mode AccessMode
 	if did == c.ownerDID {
@@ -53,6 +56,6 @@ func (c *Controller) HasBitcoinRPCAccess(did, rpcCommand string) bool {
 	if mode == AccessModeNotApplicant {
 		return false
 	}
-	_, blocked := rocBlockList[mode][rpcCommand]
+	_, blocked := rpcBlockList[mode][rpcCommand]
 	return !blocked
 }
