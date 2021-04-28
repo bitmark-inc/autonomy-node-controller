@@ -129,7 +129,7 @@ func (c *Controller) Process(m *messaging.Message) [][]byte {
 			return CommandResponse{ErrorResponse(fmt.Errorf("bad request for finish_psbt. error: %s", err.Error()))}
 		}
 
-		resp := c.finishPSBT(m.Source, params.PSBT)
+		resp := c.finishPSBT(params.PSBT)
 		return CommandResponse{resp}
 	case "set_member":
 		var params UpdateMemberAccessModeRPCParams
@@ -418,7 +418,7 @@ func (c *Controller) createWallet(incompleteDescriptor string) []byte {
 }
 
 // finishPSBT finalizes the PSBT and broadcasts the transaction
-func (c *Controller) finishPSBT(did, psbt string) []byte {
+func (c *Controller) finishPSBT(psbt string) []byte {
 	u, err := url.Parse(viper.GetString("bitcoind.rpcconnect"))
 	if err != nil {
 		return ErrorResponse(err)
