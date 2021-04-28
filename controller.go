@@ -49,6 +49,10 @@ type RemoveMemberAccessModeRPCParams struct {
 	MemberDID string `json:"member_did"`
 }
 
+type FinishPSBTRPCParams struct {
+	PSBT string `json:"psbt"`
+}
+
 type Controller struct {
 	ownerDID     string
 	bindingNonce string
@@ -114,15 +118,23 @@ func (c *Controller) Process(m *messaging.Message) [][]byte {
 	case "create_wallet":
 		var params CreateWalletRPCParams
 		if err := json.Unmarshal(req.Args, &params); err != nil {
-			return CommandResponse{ErrorResponse(fmt.Errorf("bad request for createwallet. error: %s", err.Error()))}
+			return CommandResponse{ErrorResponse(fmt.Errorf("bad request for create_wallet. error: %s", err.Error()))}
 		}
 
 		resp := c.createWallet(params.Descriptor)
 		return CommandResponse{resp}
+	case "finish_psbt":
+		var params FinishPSBTRPCParams
+		if err := json.Unmarshal(req.Args, &params); err != nil {
+			return CommandResponse{ErrorResponse(fmt.Errorf("bad request for finish_psbt. error: %s", err.Error()))}
+		}
+
+		resp := c.finishPSBT(m.Source, params.PSBT)
+		return CommandResponse{resp}
 	case "set_member":
 		var params UpdateMemberAccessModeRPCParams
 		if err := json.Unmarshal(req.Args, &params); err != nil {
-			return CommandResponse{ErrorResponse(fmt.Errorf("bad request for setmember. error: %s", err.Error()))}
+			return CommandResponse{ErrorResponse(fmt.Errorf("bad request for set_member. error: %s", err.Error()))}
 		}
 
 		resp := c.setMember(params.MemberDID, params.AccessMode)
@@ -130,7 +142,7 @@ func (c *Controller) Process(m *messaging.Message) [][]byte {
 	case "remove_member":
 		var params RemoveMemberAccessModeRPCParams
 		if err := json.Unmarshal(req.Args, &params); err != nil {
-			return CommandResponse{ErrorResponse(fmt.Errorf("bad request for removemember. error: %s", err.Error()))}
+			return CommandResponse{ErrorResponse(fmt.Errorf("bad request for remove_member. error: %s", err.Error()))}
 		}
 
 		resp := c.removeMember(params.MemberDID)
@@ -403,6 +415,57 @@ func (c *Controller) createWallet(incompleteDescriptor string) []byte {
 	)
 	gordianWalletDescriptor := accountMapDescriptorReplacer.Replace(incompleteDescriptor)
 	return ObjectResponse(map[string]interface{}{"descriptor": gordianWalletDescriptor})
+}
+
+// finishPSBT finalizes the PSBT and broadcasts the transaction
+func (c *Controller) finishPSBT(did, psbt string) []byte {
+	u, err := url.Parse(viper.GetString("bitcoind.rpcconnect"))
+	if err != nil {
+		return ErrorResponse(err)
+	}
+	connCfg := &rpcclient.ConnConfig{
+		Host:         fmt.Sprintf("%s:%s", u.Hostname(), u.Port()),
+		User:         viper.GetString("bitcoind.rpcuser"),
+		Pass:         viper.GetString("bitcoind.rpcpassword"),
+		HTTPPostMode: true,
+		DisableTLS:   true,
+	}
+	client, err := rpcclient.New(connCfg, nil)
+	if err != nil {
+		return ErrorResponse(err)
+	}
+	defer client.Shutdown()
+
+	processedPSBT, err := client.WalletProcessPsbt(psbt, btcjson.Bool(true), rpcclient.SigHashAll, btcjson.Bool(true))
+	if err != nil {
+		return ErrorResponse(err)
+	}
+	if !processedPSBT.Complete {
+		return ErrorResponse(fmt.Errorf("psbt not completed: %s", err))
+	}
+
+	psbtBytes, _ := json.Marshal(btcjson.String(processedPSBT.Psbt))
+	r, err := client.RawRequest("finalizepsbt", []json.RawMessage{psbtBytes})
+	if err != nil {
+		return ErrorResponse(err)
+	}
+	var finalizePSBTResult struct {
+		PSBT     string `json:"psbt"`
+		Hex      string `json:"hex"`
+		Complete bool   `json:"complete"`
+	}
+	json.Unmarshal(r, &finalizePSBTResult)
+	if !finalizePSBTResult.Complete {
+		return ErrorResponse(fmt.Errorf("psbt not finalized: %s", err))
+	}
+
+	txBytes, _ := json.Marshal(btcjson.String(finalizePSBTResult.Hex))
+	txid, err := client.RawRequest("sendrawtransaction", []json.RawMessage{txBytes})
+	if err != nil {
+		return ErrorResponse(err)
+	}
+
+	return ObjectResponse(map[string]string{"txid": string(txid)})
 }
 
 func (c *Controller) setMember(memberDID string, accessMode AccessMode) []byte {
