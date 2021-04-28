@@ -460,12 +460,14 @@ func (c *Controller) finishPSBT(did, psbt string) []byte {
 	}
 
 	txBytes, _ := json.Marshal(btcjson.String(finalizePSBTResult.Hex))
-	txid, err := client.RawRequest("sendrawtransaction", []json.RawMessage{txBytes})
+	r, err = client.RawRequest("sendrawtransaction", []json.RawMessage{txBytes})
 	if err != nil {
 		return ErrorResponse(err)
 	}
+	var txID string
+	json.Unmarshal(r, &txID)
 
-	return ObjectResponse(map[string]string{"txid": string(txid)})
+	return ObjectResponse(map[string]string{"txid": txID})
 }
 
 func (c *Controller) setMember(memberDID string, accessMode AccessMode) []byte {
