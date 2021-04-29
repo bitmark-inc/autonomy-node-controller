@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+	"path/filepath"
 	"strings"
 
 	log "github.com/sirupsen/logrus"
@@ -41,4 +42,9 @@ func LoadConfig(file string) {
 	default:
 		log.SetLevel(log.ErrorLevel)
 	}
+}
+
+// AbsolutePath returns the absolute file path under the specified data directory
+func AbsolutePath(name string) string {
+	return filepath.Join(viper.GetString("data_dir"), name)
 }

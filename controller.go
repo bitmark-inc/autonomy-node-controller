@@ -17,6 +17,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
 
+	"github.com/bitmark-inc/autonomy-pod-controller/config"
 	"github.com/bitmark-inc/autonomy-pod-controller/key"
 	"github.com/bitmark-inc/autonomy-pod-controller/messaging"
 	"github.com/bitmark-inc/autonomy-pod-controller/utils"
@@ -61,12 +62,12 @@ type Controller struct {
 func NewController(ownerDID string, i *PodIdentity) *Controller {
 	return &Controller{
 		ownerDID:    ownerDID,
-		bindingFile: viper.GetString("binding_file"),
+		bindingFile: config.AbsolutePath(viper.GetString("binding_file")),
 		httpClient: &http.Client{
 			Timeout: 10 * time.Second,
 		},
 		Identity: i,
-		store:    NewBoltStore(viper.GetString("store_path")),
+		store:    NewBoltStore(config.AbsolutePath(viper.GetString("db_name"))),
 	}
 }
 
@@ -319,7 +320,7 @@ func (c *Controller) createWallet(incompleteDescriptor string) []byte {
 	if err != nil {
 		return ErrorResponse(err)
 	}
-	keyFilePath := viper.GetString("gordian_master_key_file")
+	keyFilePath := config.AbsolutePath(viper.GetString("gordian_master_key_file"))
 	masterKey, err := createOrLoadMasterKey(blockchainInfo.Chain, keyFilePath)
 	if err != nil {
 		return ErrorResponse(err)
