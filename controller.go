@@ -62,12 +62,12 @@ type Controller struct {
 func NewController(ownerDID string, i *PodIdentity) *Controller {
 	return &Controller{
 		ownerDID:    ownerDID,
-		bindingFile: config.AbsolutePath(viper.GetString("binding_file")),
+		bindingFile: config.AbsoluteApplicationFilePath(viper.GetString("binding_file")),
 		httpClient: &http.Client{
 			Timeout: 10 * time.Second,
 		},
 		Identity: i,
-		store:    NewBoltStore(config.AbsolutePath(viper.GetString("db_name"))),
+		store:    NewBoltStore(config.AbsoluteApplicationFilePath(viper.GetString("db_name"))),
 	}
 }
 
@@ -320,7 +320,7 @@ func (c *Controller) createWallet(incompleteDescriptor string) []byte {
 	if err != nil {
 		return ErrorResponse(err)
 	}
-	keyFilePath := config.AbsolutePath(viper.GetString("gordian_master_key_file"))
+	keyFilePath := config.AbsoluteApplicationFilePath(viper.GetString("gordian_master_key_file"))
 	masterKey, err := createOrLoadMasterKey(blockchainInfo.Chain, keyFilePath)
 	if err != nil {
 		return ErrorResponse(err)

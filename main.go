@@ -27,7 +27,7 @@ func main() {
 
 	config.LoadConfig(configFile)
 
-	i, created, err := CreateOrLoadPodIdentityFromKey(config.AbsolutePath(viper.GetString("auth_key_file")))
+	i, created, err := CreateOrLoadPodIdentityFromKey(config.AbsoluteApplicationFilePath(viper.GetString("auth_key_file")))
 	if err != nil {
 		log.WithError(err).Panic("fail to create or load identity")
 	}
@@ -48,7 +48,7 @@ func main() {
 		&http.Client{Timeout: 10 * time.Second},
 		viper.GetString("messaging.endpoint"),
 		jwt,
-		config.AbsolutePath(viper.GetString("messaging.db_name")))
+		config.AbsoluteApplicationFilePath(viper.GetString("messaging.db_name")))
 
 	if err := messagingClient.RegisterAccount(); err != nil {
 		log.Fatalf("registering account, error: %s", err)

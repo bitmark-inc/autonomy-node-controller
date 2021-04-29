@@ -44,7 +44,10 @@ func LoadConfig(file string) {
 	}
 }
 
-// AbsolutePath returns the absolute file path under the specified data directory
-func AbsolutePath(name string) string {
+// AbsoluteApplicationFilePath returns the absolute file path under the specified data directory
+func AbsoluteApplicationFilePath(name string) string {
+	if filepath.IsAbs(name) {
+		panic("relative path is expected")
+	}
 	return filepath.Join(viper.GetString("data_dir"), name)
 }
