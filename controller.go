@@ -454,7 +454,9 @@ func (c *Controller) finishPSBT(psbt string) []byte {
 		Hex      string `json:"hex"`
 		Complete bool   `json:"complete"`
 	}
-	json.Unmarshal(r, &finalizePSBTResult)
+	if err := json.Unmarshal(r, &finalizePSBTResult); err != nil {
+		return ErrorResponse(fmt.Errorf("unexpected response from finalizepsbt: %s", err))
+	}
 	if !finalizePSBTResult.Complete {
 		return ErrorResponse(fmt.Errorf("psbt not finalized: %s", err))
 	}
@@ -465,7 +467,9 @@ func (c *Controller) finishPSBT(psbt string) []byte {
 		return ErrorResponse(err)
 	}
 	var txID string
-	json.Unmarshal(r, &txID)
+	if err := json.Unmarshal(r, &txID); err != nil {
+		return ErrorResponse(fmt.Errorf("unexpected response from sendrawtransaction: %s", err))
+	}
 
 	return ObjectResponse(map[string]string{"txid": txID})
 }
