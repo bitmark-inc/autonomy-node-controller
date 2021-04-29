@@ -1,18 +1,21 @@
 log:
   level: info
 
+owner_did: <pod_owner_did>
+
+# set the directory for key and db files
+data_dir: .
+
+db_name: controller.db
+auth_key_file: auth_key.json
+gordian_master_key_file: gordian_master_key
+binding_file: "OWNER_BOUND"
+
 messaging:
-  db_path: "./axolotl.db"
+  db_name: "axolotl.db"
   endpoint: "https://autonomy-wallet.bitmark.com"
 
 bitcoind:
   rpcconnect: http://localhost:8332
   rpcuser: username
   rpcpassword: password
-
-owner_did: <pod_owner_did>
-binding_file: "./OWNER_BOUND"
-keyfile: ./keyfile.json
-gordian_master_key_file: xxx
-
-db_path: controller.db
