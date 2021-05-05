@@ -33,18 +33,60 @@ func (m *MockStore) EXPECT() *MockStoreMockRecorder {
 	return m.recorder
 }
 
-// AccessMode mocks base method.
-func (m *MockStore) AccessMode(memberDID string) AccessMode {
+// BindingNonce mocks base method.
+func (m *MockStore) BindingNonce(did string) string {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "AccessMode", memberDID)
+	ret := m.ctrl.Call(m, "BindingNonce", did)
+	ret0, _ := ret[0].(string)
+	return ret0
+}
+
+// BindingNonce indicates an expected call of BindingNonce.
+func (mr *MockStoreMockRecorder) BindingNonce(did interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "BindingNonce", reflect.TypeOf((*MockStore)(nil).BindingNonce), did)
+}
+
+// CompleteBinding mocks base method.
+func (m *MockStore) CompleteBinding(did string) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "CompleteBinding", did)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// CompleteBinding indicates an expected call of CompleteBinding.
+func (mr *MockStoreMockRecorder) CompleteBinding(did interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CompleteBinding", reflect.TypeOf((*MockStore)(nil).CompleteBinding), did)
+}
+
+// HasBinding mocks base method.
+func (m *MockStore) HasBinding(did string) bool {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "HasBinding", did)
+	ret0, _ := ret[0].(bool)
+	return ret0
+}
+
+// HasBinding indicates an expected call of HasBinding.
+func (mr *MockStoreMockRecorder) HasBinding(did interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "HasBinding", reflect.TypeOf((*MockStore)(nil).HasBinding), did)
+}
+
+// MemberAccessMode mocks base method.
+func (m *MockStore) MemberAccessMode(memberDID string) AccessMode {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "MemberAccessMode", memberDID)
 	ret0, _ := ret[0].(AccessMode)
 	return ret0
 }
 
-// AccessMode indicates an expected call of AccessMode.
-func (mr *MockStoreMockRecorder) AccessMode(memberDID interface{}) *gomock.Call {
+// MemberAccessMode indicates an expected call of MemberAccessMode.
+func (mr *MockStoreMockRecorder) MemberAccessMode(memberDID interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AccessMode", reflect.TypeOf((*MockStore)(nil).AccessMode), memberDID)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "MemberAccessMode", reflect.TypeOf((*MockStore)(nil).MemberAccessMode), memberDID)
 }
 
 // RemoveMember mocks base method.
@@ -59,6 +101,20 @@ func (m *MockStore) RemoveMember(memberDID string) error {
 func (mr *MockStoreMockRecorder) RemoveMember(memberDID interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RemoveMember", reflect.TypeOf((*MockStore)(nil).RemoveMember), memberDID)
+}
+
+// SetBinding mocks base method.
+func (m *MockStore) SetBinding(did, nonce string) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "SetBinding", did, nonce)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// SetBinding indicates an expected call of SetBinding.
+func (mr *MockStoreMockRecorder) SetBinding(did, nonce interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetBinding", reflect.TypeOf((*MockStore)(nil).SetBinding), did, nonce)
 }
 
 // UpdateMemberAccessMode mocks base method.

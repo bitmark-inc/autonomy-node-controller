@@ -32,27 +32,17 @@ var (
 	}
 )
 
-func (c *Controller) HasRPCAccess(did, command string) bool {
+func HasRPCAccess(command string, mode AccessMode) bool {
 	switch command {
-	case "bitcoind":
-		return true
+	case "bind", "bind_ack", "bitcoind":
+		return mode > AccessModeNotApplicant && mode <= AccessModeMinimal
 	default:
-		if did == c.ownerDID {
-			return true
-		}
-		return false
+		return mode == AccessModeFull
 	}
 }
 
 // TODO: this method could be integrated in to `HasRPCAccess`
-func (c *Controller) HasBitcoinRPCAccess(did, rpcCommand string) bool {
-	var mode AccessMode
-	if did == c.ownerDID {
-		mode = AccessModeFull
-	} else {
-		mode = c.store.AccessMode(did)
-	}
-
+func HasBitcoinRPCAccess(rpcCommand string, mode AccessMode) bool {
 	if mode == AccessModeNotApplicant {
 		return false
 	}

@@ -55,18 +55,15 @@ type FinishPSBTRPCParams struct {
 }
 
 type Controller struct {
-	ownerDID     string
-	bindingNonce string
-	bindingFile  string
-	httpClient   *http.Client
-	Identity     *PodIdentity
-	store        Store
+	ownerDID   string
+	httpClient *http.Client
+	Identity   *PodIdentity
+	store      Store
 }
 
 func NewController(ownerDID string, i *PodIdentity) *Controller {
 	return &Controller{
-		ownerDID:    ownerDID,
-		bindingFile: config.AbsoluteApplicationFilePath(viper.GetString("binding_file")),
+		ownerDID: ownerDID,
 		httpClient: &http.Client{
 			Timeout: 10 * time.Second,
 		},
@@ -88,19 +85,14 @@ func (c *Controller) Process(m *messaging.Message) [][]byte {
 		log.WithError(err).Error("fail to decode content")
 	}
 
-	if req.Command != "bind" && req.Command != "bind_ack" {
-		bound, err := c.IsPodBound()
-		if err != nil {
-			return CommandResponse{ErrorResponse(err)}
-		}
+	accessMode := c.accessMode(m.Source)
 
-		if !bound {
-			return CommandResponse{ErrorResponse(err)}
-		}
+	if !HasRPCAccess(req.Command, accessMode) {
+		return CommandResponse{ErrorResponse(errors.New("not allowed to use this RPC"))}
 	}
 
-	if !c.HasRPCAccess(m.Source, req.Command) {
-		return CommandResponse{ErrorResponse(errors.New("not allowed to use this RPC"))}
+	if !c.hasCorrectBindingState(m.Source, req.Command) {
+		return CommandResponse{ErrorResponse(errors.New("incorrect binding state"))}
 	}
 
 	log.WithField("command request", req).Debug("parse command")
@@ -154,6 +146,10 @@ func (c *Controller) Process(m *messaging.Message) [][]byte {
 			return CommandResponse{ErrorResponse(fmt.Errorf("bad request for bitcoind. error: %s", err.Error()))}
 		}
 
+		if !HasBitcoinRPCAccess(params.Method, accessMode) {
+			return CommandResponse{ErrorResponse(errors.New("not allowed to use this RPC"))}
+		}
+
 		resp := c.bitcoinRPC(m.Source, params)
 		return CommandResponse{resp}
 	default:
@@ -161,23 +157,30 @@ func (c *Controller) Process(m *messaging.Message) [][]byte {
 	}
 }
 
-// bind triggers the bind process which is triggerred by a client
-// Only pre-defined owner DID is allowed to initiate the binding process.
+func (c *Controller) accessMode(did string) AccessMode {
+	if did == c.ownerDID {
+		return AccessModeFull
+	}
+
+	mode := c.store.MemberAccessMode(did)
+	if mode > AccessModeMinimal {
+		return AccessModeNotApplicant
+	}
+	return mode
+}
+
+func (c *Controller) hasCorrectBindingState(did, command string) bool {
+	fmt.Println(did, command, c.store.HasBinding(did))
+	switch command {
+	case "bind", "bind_ack":
+		return !c.store.HasBinding(did)
+	default:
+		return c.store.HasBinding(did)
+	}
+}
+
+// bind triggers the bind process which is triggerred by a client.
 func (c *Controller) bind(did string) []byte {
-	if did != c.ownerDID {
-		return ErrorResponse(errors.New("illegal owner"))
-	}
-
-	bound, err := c.IsPodBound()
-	if err != nil {
-		return ErrorResponse(err)
-	}
-
-	if bound {
-		log.Warn("node has bound")
-		return ErrorResponse(fmt.Errorf("node has bound"))
-	}
-
 	b, err := utils.GenerateRandomBytes(4)
 	if err != nil {
 		return ErrorResponse(err)
@@ -190,7 +193,9 @@ func (c *Controller) bind(did string) []byte {
 		return ErrorResponse(err)
 	}
 
-	c.bindingNonce = nonce
+	if err := c.store.SetBinding(did, nonce); err != nil {
+		return ErrorResponse(err)
+	}
 
 	return ObjectResponse(map[string]string{
 		"identity":  c.Identity.DID,
@@ -203,27 +208,15 @@ func (c *Controller) bind(did string) []byte {
 // bindACK process the client response of a binding process. It checks the nonce
 // and the signature using owner DID.
 func (c *Controller) bindACK(did string, ackParams BindACKParams) []byte {
-	defer func() {
-		c.bindingNonce = ""
-	}()
+	nonce := c.store.BindingNonce(did)
 
-	if did != c.ownerDID {
-		return ErrorResponse(errors.New("illegal owner"))
-	}
-
-	if c.bindingNonce == "" {
-		err := fmt.Errorf("binding request not found")
-		log.WithError(err).Error("fail to bind account")
-		return ErrorResponse(err)
-	}
-
-	if !key.VerifySignature(did, c.bindingNonce+ackParams.Timestamp, ackParams.Signature) {
+	if !key.VerifySignature(did, nonce+ackParams.Timestamp, ackParams.Signature) {
 		err := fmt.Errorf("invalid binding ack signature")
 		log.WithError(err).Error("fail to bind account")
 		return ErrorResponse(err)
 	}
 
-	if err := c.BindAccount(); err != nil {
+	if err := c.store.CompleteBinding(did); err != nil {
 		log.WithError(err).Error("fail to bind account")
 		return ErrorResponse(err)
 	}
@@ -236,10 +229,6 @@ func (c *Controller) bindACK(did string, ackParams BindACKParams) []byte {
 
 // bitcoinRPC runs bitcoind rpc for clients
 func (c *Controller) bitcoinRPC(did string, bitcoindParams BitcoindRPCParams) []byte {
-	if !c.HasBitcoinRPCAccess(did, bitcoindParams.Method) {
-		return ErrorResponse(errors.New("not allowed to use this RPC"))
-	}
-
 	var reqBody bytes.Buffer
 
 	if err := json.NewEncoder(&reqBody).Encode(bitcoindParams); err != nil {
