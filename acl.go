@@ -10,6 +10,34 @@ const (
 )
 
 var (
+	fullAccessRPCAllowList = map[string]bool{
+		"bind":          true,
+		"bind_ack":      true,
+		"bitcoind":      true,
+		"create_wallet": true,
+		"finish_psbt":   true,
+		"set_member":    true,
+		"remove_member": true,
+	}
+	limitedAccessRPCAllowList = map[string]bool{
+		"bind":     true,
+		"bind_ack": true,
+		"bitcoind": true,
+	}
+	minimalAccessRPCAllowList = map[string]bool{
+		"bind":     true,
+		"bind_ack": true,
+		"bitcoind": true,
+	}
+
+	rpcAllowList = map[AccessMode]map[string]bool{
+		AccessModeFull:    fullAccessRPCAllowList,
+		AccessModeLimited: limitedAccessRPCAllowList,
+		AccessModeMinimal: minimalAccessRPCAllowList,
+	}
+)
+
+var (
 	fullAccessBitcoinRPCBlockList = map[string]bool{
 		"unloadwallet": true,
 	}
@@ -33,12 +61,8 @@ var (
 )
 
 func HasRPCAccess(command string, mode AccessMode) bool {
-	switch command {
-	case "bind", "bind_ack", "bitcoind":
-		return mode > AccessModeNotApplicant && mode <= AccessModeMinimal
-	default:
-		return mode == AccessModeFull
-	}
+	_, ok := rpcAllowList[mode][command]
+	return ok
 }
 
 // TODO: this method could be integrated in to `HasRPCAccess`
