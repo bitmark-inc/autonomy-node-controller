@@ -11,24 +11,18 @@ type ACLTestSuite struct {
 }
 
 func (suite *ACLTestSuite) TestHasRPCAccess() {
-	access := map[AccessMode]map[string]bool{
-		AccessModeFull: {
-			"create_wallet": true,
-			"set_member":    true,
-			"remove_member": true,
-			"bitcoind":      true,
-		},
-		AccessModeLimited: {
-			"bitcoind": true,
-		},
-		AccessModeMinimal: {
-			"bitcoind": true,
-		},
-		AccessModeNotApplicant: {},
+	access := map[string]map[AccessMode]bool{
+		"bind":          {AccessModeFull: true, AccessModeLimited: true, AccessModeMinimal: true},
+		"bind_ack":      {AccessModeFull: true, AccessModeLimited: true, AccessModeMinimal: true},
+		"bitcoind":      {AccessModeFull: true, AccessModeLimited: true, AccessModeMinimal: true},
+		"create_wallet": {AccessModeFull: true},
+		"finish_psbt":   {AccessModeFull: true},
+		"set_member":    {AccessModeFull: true},
+		"remove_member": {AccessModeFull: true},
 	}
-	for mode, access := range access {
-		for rpc, allowed := range access {
-			suite.Equal(allowed, HasRPCAccess(rpc, mode))
+	for rpc, access := range access {
+		for _, mode := range []AccessMode{AccessModeNotApplicant, AccessModeFull, AccessModeLimited, AccessModeMinimal} {
+			suite.Equal(access[mode], HasRPCAccess(rpc, mode))
 		}
 	}
 }
