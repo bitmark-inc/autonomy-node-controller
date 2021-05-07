@@ -111,6 +111,20 @@ CONNECTION_LOOP:
 			log.WithError(err).Panic("fail to establish websocket connection")
 		}
 
+		addKey := make(chan struct{}, 1)
+		go func(refillInterval time.Duration) {
+			for {
+				<-addKey
+				log.Debug("refill pre-keys")
+				messagingClient.RefreshToken(i.AuthToken())
+
+				if err := messagingClient.RegisterKeys(); err != nil {
+					log.WithError(err).Fatalf("failed to refill pre-keys")
+				}
+				time.Sleep(refillInterval)
+			}
+		}(time.Second)
+
 		// This is a loop to watch and process new messages
 		for {
 			select {
@@ -130,6 +144,11 @@ CONNECTION_LOOP:
 				responseMessage := controller.Process(m)
 				if responseMessage != nil {
 					ws.SendWhisperMessages(m.Source, m.SourceDevice, responseMessage)
+				}
+
+				select {
+				case addKey <- struct{}{}:
+				default:
 				}
 			}
 		}
