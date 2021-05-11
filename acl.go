@@ -10,6 +10,34 @@ const (
 )
 
 var (
+	fullAccessRPCAllowList = map[string]bool{
+		"bind":          true,
+		"bind_ack":      true,
+		"bitcoind":      true,
+		"create_wallet": true,
+		"finish_psbt":   true,
+		"set_member":    true,
+		"remove_member": true,
+	}
+	limitedAccessRPCAllowList = map[string]bool{
+		"bind":     true,
+		"bind_ack": true,
+		"bitcoind": true,
+	}
+	minimalAccessRPCAllowList = map[string]bool{
+		"bind":     true,
+		"bind_ack": true,
+		"bitcoind": true,
+	}
+
+	rpcAllowList = map[AccessMode]map[string]bool{
+		AccessModeFull:    fullAccessRPCAllowList,
+		AccessModeLimited: limitedAccessRPCAllowList,
+		AccessModeMinimal: minimalAccessRPCAllowList,
+	}
+)
+
+var (
 	fullAccessBitcoinRPCBlockList = map[string]bool{
 		"unloadwallet": true,
 	}
@@ -32,27 +60,13 @@ var (
 	}
 )
 
-func (c *Controller) HasRPCAccess(did, command string) bool {
-	switch command {
-	case "bitcoind":
-		return true
-	default:
-		if did == c.ownerDID {
-			return true
-		}
-		return false
-	}
+func HasRPCAccess(command string, mode AccessMode) bool {
+	_, ok := rpcAllowList[mode][command]
+	return ok
 }
 
 // TODO: this method could be integrated in to `HasRPCAccess`
-func (c *Controller) HasBitcoinRPCAccess(did, rpcCommand string) bool {
-	var mode AccessMode
-	if did == c.ownerDID {
-		mode = AccessModeFull
-	} else {
-		mode = c.store.AccessMode(did)
-	}
-
+func HasBitcoinRPCAccess(rpcCommand string, mode AccessMode) bool {
 	if mode == AccessModeNotApplicant {
 		return false
 	}

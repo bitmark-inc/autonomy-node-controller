@@ -1,19 +1,28 @@
 package main
 
 import (
+	"bytes"
 	"encoding/binary"
 
 	bolt "go.etcd.io/bbolt"
 )
 
 var (
-	BucketMember = []byte("members")
+	bucketBinding = []byte("bindings")
+	bucketMember  = []byte("members")
+
+	valueTrue  = []byte("true")
+	valueFalse = []byte("false")
 )
 
 type Store interface {
+	SetBinding(did, nonce string) error
+	BindingNonce(did string) string
+	CompleteBinding(did string) error
+	HasBinding(did string) bool
 	UpdateMemberAccessMode(memberDID string, accessMode AccessMode) error
 	RemoveMember(memberDID string) error
-	AccessMode(memberDID string) AccessMode
+	MemberAccessMode(memberDID string) AccessMode
 }
 
 type BoltStore struct {
@@ -27,8 +36,13 @@ func NewBoltStore(path string) *BoltStore {
 	}
 
 	err = db.Update(func(tx *bolt.Tx) error {
-		_, err := tx.CreateBucketIfNotExists(BucketMember)
-		return err
+		if _, err := tx.CreateBucketIfNotExists(bucketBinding); err != nil {
+			return err
+		}
+		if _, err := tx.CreateBucketIfNotExists(bucketMember); err != nil {
+			return err
+		}
+		return nil
 	})
 	if err != nil {
 		panic(err)
@@ -37,9 +51,44 @@ func NewBoltStore(path string) *BoltStore {
 	return &BoltStore{db}
 }
 
+func (s *BoltStore) SetBinding(did, nonce string) error {
+	return s.db.Update(func(tx *bolt.Tx) error {
+		b := tx.Bucket(bucketBinding)
+		return b.Put([]byte(did), []byte(nonce))
+	})
+}
+
+func (s *BoltStore) BindingNonce(did string) string {
+	var nonce string
+	s.db.View(func(tx *bolt.Tx) error {
+		b := tx.Bucket(bucketBinding)
+		nonce = string(b.Get([]byte(did)))
+		return nil
+	})
+	return nonce
+}
+
+func (s *BoltStore) CompleteBinding(did string) error {
+	return s.db.Update(func(tx *bolt.Tx) error {
+		b := tx.Bucket(bucketBinding)
+		return b.Put([]byte(did), valueTrue)
+	})
+}
+
+func (s *BoltStore) HasBinding(did string) bool {
+	var bound bool
+	s.db.View(func(tx *bolt.Tx) error {
+		b := tx.Bucket(bucketBinding)
+		v := b.Get([]byte(did))
+		bound = bytes.Equal(v, valueTrue)
+		return nil
+	})
+	return bound
+}
+
 func (s *BoltStore) UpdateMemberAccessMode(memberDID string, accessMode AccessMode) error {
 	return s.db.Update(func(tx *bolt.Tx) error {
-		b := tx.Bucket(BucketMember)
+		b := tx.Bucket(bucketMember)
 		v := make([]byte, 8)
 		binary.BigEndian.PutUint64(v, uint64(accessMode))
 		return b.Put([]byte(memberDID), v)
@@ -48,15 +97,15 @@ func (s *BoltStore) UpdateMemberAccessMode(memberDID string, accessMode AccessMo
 
 func (s *BoltStore) RemoveMember(memberDID string) error {
 	return s.db.Update(func(tx *bolt.Tx) error {
-		b := tx.Bucket(BucketMember)
+		b := tx.Bucket(bucketMember)
 		return b.Delete([]byte(memberDID))
 	})
 }
 
-func (s *BoltStore) AccessMode(memberDID string) AccessMode {
+func (s *BoltStore) MemberAccessMode(memberDID string) AccessMode {
 	var mode AccessMode
 	s.db.View(func(tx *bolt.Tx) error {
-		b := tx.Bucket(BucketMember)
+		b := tx.Bucket(bucketMember)
 		v := b.Get([]byte(memberDID))
 		if v == nil {
 			mode = AccessModeNotApplicant
