@@ -24,18 +24,19 @@ type KeyFile struct {
 
 // PodIdentity is an identity object
 type PodIdentity struct {
+	authToken  string
 	PrivateKey []byte
 	DID        string
 }
 
 // Auth do authentication from the autonomy API server as the role autonomy-pod
 // and get a JWT token for sending and receiving messages
-func (p *PodIdentity) Auth() (string, error) {
+func (p *PodIdentity) Auth() error {
 	nowString := fmt.Sprint(int64(time.Now().UnixNano()) / int64(time.Millisecond))
 	signature, err := key.Sign(p.PrivateKey, nowString+"autonomy-pod")
 	if err != nil {
 		log.WithField("signature", signature).Error("sign error")
-		return "", err
+		return err
 	}
 
 	req := map[string]string{
@@ -48,17 +49,17 @@ func (p *PodIdentity) Auth() (string, error) {
 	var body bytes.Buffer
 
 	if err := json.NewEncoder(&body).Encode(req); err != nil {
-		return "", err
+		return err
 	}
 
 	resp, err := http.Post(viper.GetString("messaging.endpoint")+"/api/auth", "application/json", &body)
 	if err != nil {
-		return "", err
+		return err
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != 200 {
-		return "", fmt.Errorf("auth api request fail. status: %d", resp.StatusCode)
+		return fmt.Errorf("auth api request fail. status: %d", resp.StatusCode)
 	}
 
 	var respBody struct {
@@ -66,10 +67,18 @@ func (p *PodIdentity) Auth() (string, error) {
 	}
 
 	if err := json.NewDecoder(resp.Body).Decode(&respBody); err != nil {
-		return "", err
+		return err
 	}
 
-	return respBody.Token, nil
+	p.authToken = respBody.Token
+
+	return nil
+}
+
+// AuthToken returns current auth_token from the API server. It would be empty if
+// it is not authenticate yet from the API server.
+func (p *PodIdentity) AuthToken() string {
+	return p.authToken
 }
 
 // NewPodIdentity creates a new identity

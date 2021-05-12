@@ -6,6 +6,7 @@ require (
 	github.com/bitmark-inc/secp256k1-go v0.0.0-20210301070431-3d05e3361433
 	github.com/btcsuite/btcd v0.21.0-beta.0.20210413192109-2d7825cf709f
 	github.com/btcsuite/btcutil v1.0.3-0.20201208143702-a53e38424cce
+	github.com/dgrijalva/jwt-go v3.2.0+incompatible
 	github.com/golang/mock v1.5.0
 	github.com/google/uuid v1.2.0
 	github.com/gorilla/websocket v1.4.2
