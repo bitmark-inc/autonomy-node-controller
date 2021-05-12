@@ -170,7 +170,6 @@ func (c *Controller) accessMode(did string) AccessMode {
 }
 
 func (c *Controller) hasCorrectBindingState(did, command string) bool {
-	fmt.Println(did, command, c.store.HasBinding(did))
 	switch command {
 	case "bind", "bind_ack":
 		return !c.store.HasBinding(did)
