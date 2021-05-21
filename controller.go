@@ -303,7 +303,7 @@ func (c *Controller) createWallet(incompleteDescriptor string) []byte {
 			switch jerr.Code {
 			case btcjson.ErrRPCWalletNotFound:
 				shouldCreateWallet = true
-				shouldCreateWallet = true
+				shouldImportDescriptors = true
 			default:
 				return ErrorResponse(err)
 			}
