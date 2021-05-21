@@ -135,7 +135,7 @@ func bitcoinCommand(wsClient *messaging.WSMessagingClient, respCh <-chan *messag
 func createWallet(wsClient *messaging.WSMessagingClient, respCh <-chan *messaging.Message, podDID, incompleteDescriptor string) (string, error) {
 	req := map[string]interface{}{
 		"id":      "test",
-		"command": "createwallet",
+		"command": "create_wallet",
 		"args": map[string]string{
 			"descriptor": incompleteDescriptor,
 		},
