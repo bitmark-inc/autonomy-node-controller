@@ -23,8 +23,6 @@ import (
 	"github.com/bitmark-inc/autonomy-pod-controller/utils"
 )
 
-type CommandResponse [][]byte
-
 // BindACKParams is the parameters for command `bind_ack`
 type BindACKParams struct {
 	Timestamp string `json:"timestamp"`
@@ -88,72 +86,71 @@ func (c *Controller) Process(m *messaging.Message) [][]byte {
 	accessMode := c.accessMode(m.Source)
 
 	if !HasRPCAccess(req.Command, accessMode) {
-		return CommandResponse{ErrorResponse(errors.New("not allowed to use this RPC"))}
+		return CommandResponse(req.ID, nil, errors.New("not allowed to use this RPC"))
 	}
 
 	if !c.hasCorrectBindingState(m.Source, req.Command) {
-		return CommandResponse{ErrorResponse(errors.New("incorrect binding state"))}
+		return CommandResponse(req.ID, nil, errors.New("incorrect binding state"))
 	}
 
 	log.WithField("command request", req).Debug("parse command")
 	switch req.Command {
 	case "bind":
-		resp := c.bind(m.Source)
-		return CommandResponse{resp}
+		resp, err := c.bind(m.Source)
+		return CommandResponse(req.ID, resp, err)
 	case "bind_ack":
 		var params BindACKParams
 		if err := json.Unmarshal(req.Args, &params); err != nil {
-			return CommandResponse{ErrorResponse(fmt.Errorf("bad request for bind_ack. error: %s", err.Error()))}
+			return CommandResponse(req.ID, nil, fmt.Errorf("bad request for bind_ack: %s", err.Error()))
 		}
 
-		resp := c.bindACK(m.Source, params)
-		return CommandResponse{resp}
+		resp, err := c.bindACK(m.Source, params)
+		return CommandResponse(req.ID, resp, err)
 	case "create_wallet":
 		var params CreateWalletRPCParams
 		if err := json.Unmarshal(req.Args, &params); err != nil {
-			return CommandResponse{ErrorResponse(fmt.Errorf("bad request for create_wallet. error: %s", err.Error()))}
+			return CommandResponse(req.ID, nil, fmt.Errorf("bad request for create_wallet: %s", err.Error()))
 		}
 
-		resp := c.createWallet(params.Descriptor)
-		return CommandResponse{resp}
+		resp, err := c.createWallet(params.Descriptor)
+		return CommandResponse(req.ID, resp, err)
 	case "finish_psbt":
 		var params FinishPSBTRPCParams
 		if err := json.Unmarshal(req.Args, &params); err != nil {
-			return CommandResponse{ErrorResponse(fmt.Errorf("bad request for finish_psbt. error: %s", err.Error()))}
+			return CommandResponse(req.ID, nil, fmt.Errorf("bad request for finish_psbt: %s", err.Error()))
 		}
 
-		resp := c.finishPSBT(params.PSBT)
-		return CommandResponse{resp}
+		resp, err := c.finishPSBT(params.PSBT)
+		return CommandResponse(req.ID, resp, err)
 	case "set_member":
 		var params UpdateMemberAccessModeRPCParams
 		if err := json.Unmarshal(req.Args, &params); err != nil {
-			return CommandResponse{ErrorResponse(fmt.Errorf("bad request for set_member. error: %s", err.Error()))}
+			return CommandResponse(req.ID, nil, fmt.Errorf("bad request for set_member: %s", err.Error()))
 		}
 
-		resp := c.setMember(params.MemberDID, params.AccessMode)
-		return CommandResponse{resp}
+		resp, err := c.setMember(params.MemberDID, params.AccessMode)
+		return CommandResponse(req.ID, resp, err)
 	case "remove_member":
 		var params RemoveMemberAccessModeRPCParams
 		if err := json.Unmarshal(req.Args, &params); err != nil {
-			return CommandResponse{ErrorResponse(fmt.Errorf("bad request for remove_member. error: %s", err.Error()))}
+			return CommandResponse(req.ID, nil, fmt.Errorf("bad request for remove_member: %s", err.Error()))
 		}
-
-		resp := c.removeMember(params.MemberDID)
-		return CommandResponse{resp}
+		resp, err := c.removeMember(params.MemberDID)
+		return CommandResponse(req.ID, resp, err)
 	case "bitcoind":
 		var params BitcoindRPCParams
 		if err := json.Unmarshal(req.Args, &params); err != nil {
-			return CommandResponse{ErrorResponse(fmt.Errorf("bad request for bitcoind. error: %s", err.Error()))}
+			return CommandResponse(req.ID, nil, fmt.Errorf("bad request for bitcoind: %s", err.Error()))
 		}
 
 		if !HasBitcoinRPCAccess(params.Method, accessMode) {
-			return CommandResponse{ErrorResponse(errors.New("not allowed to use this RPC"))}
+			return CommandResponse(req.ID, nil, errors.New("not allowed to use this RPC"))
 		}
 
-		resp := c.bitcoinRPC(m.Source, params)
-		return CommandResponse{resp}
+		resp, err := c.bitcoinRPC(m.Source, params)
+		return CommandResponse(req.ID, resp, err)
 	default:
-		return CommandResponse{ErrorResponse(fmt.Errorf("unsupported command"))}
+		return CommandResponse(req.ID, nil, fmt.Errorf("unsupported command"))
 	}
 }
 
@@ -179,71 +176,69 @@ func (c *Controller) hasCorrectBindingState(did, command string) bool {
 }
 
 // bind triggers the bind process which is triggerred by a client.
-func (c *Controller) bind(did string) []byte {
+func (c *Controller) bind(did string) (map[string]string, error) {
 	b, err := utils.GenerateRandomBytes(4)
 	if err != nil {
-		return ErrorResponse(err)
+		return nil, err
 	}
 
 	nonce := hex.EncodeToString(b)
 	nowString := fmt.Sprint(int64(time.Now().UnixNano()) / int64(time.Millisecond))
 	signature, err := key.Sign(c.Identity.PrivateKey, nonce+nowString)
 	if err != nil {
-		return ErrorResponse(err)
+		return nil, err
 	}
 
 	if err := c.store.SetBinding(did, nonce); err != nil {
-		return ErrorResponse(err)
+		return nil, err
 	}
 
-	return ObjectResponse(map[string]string{
+	return map[string]string{
 		"identity":  c.Identity.DID,
 		"nonce":     nonce,
 		"timestamp": nowString,
 		"signature": signature,
-	})
+	}, nil
 }
 
 // bindACK process the client response of a binding process. It checks the nonce
 // and the signature using owner DID.
-func (c *Controller) bindACK(did string, ackParams BindACKParams) []byte {
+func (c *Controller) bindACK(did string, ackParams BindACKParams) (map[string]string, error) {
 	nonce := c.store.BindingNonce(did)
 
 	if !key.VerifySignature(did, nonce+ackParams.Timestamp, ackParams.Signature) {
 		err := fmt.Errorf("invalid binding ack signature")
 		log.WithError(err).Error("fail to bind account")
-		return ErrorResponse(err)
+		return nil, err
 	}
 
 	if err := c.store.CompleteBinding(did); err != nil {
 		log.WithError(err).Error("fail to bind account")
-		return ErrorResponse(err)
+		return nil, err
 	}
 	log.WithField("did", did).Println("bind account successfully")
 
-	return ObjectResponse(map[string]string{
-		"status": "ok",
-	})
+	return map[string]string{"status": "ok"}, nil
 }
 
 // bitcoinRPC runs bitcoind rpc for clients
-func (c *Controller) bitcoinRPC(did string, bitcoindParams BitcoindRPCParams) []byte {
+func (c *Controller) bitcoinRPC(did string, bitcoindParams BitcoindRPCParams) (map[string]interface{}, error) {
 	var reqBody bytes.Buffer
 
 	if err := json.NewEncoder(&reqBody).Encode(bitcoindParams); err != nil {
-		return ErrorResponse(err)
+		return nil, err
 	}
 
-	// log.WithField("reqBody", reqBody.String()).Info("requset body")
+	// log.WithField("reqBody", reqBody.String()).Info("request body")
 	req, err := http.NewRequest("POST", viper.GetString("bitcoind.rpcconnect"), &reqBody)
 	if err != nil {
-		return ErrorResponse(err)
+		return nil, err
 	}
 	req.SetBasicAuth(viper.GetString("bitcoind.rpcuser"), viper.GetString("bitcoind.rpcpassword"))
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
-		return ErrorResponse(err)
+		return nil, err
 	}
 	defer resp.Body.Close()
 
@@ -251,14 +246,14 @@ func (c *Controller) bitcoinRPC(did string, bitcoindParams BitcoindRPCParams) []
 	if resp.StatusCode != 401 {
 		responseBody, err = ioutil.ReadAll(resp.Body)
 		if err != nil {
-			return ErrorResponse(err)
+			return nil, err
 		}
 	}
 
-	return ObjectResponse(map[string]interface{}{
+	return map[string]interface{}{
 		"statusCode":   resp.StatusCode,
 		"responseBody": responseBody,
-	})
+	}, nil
 }
 
 // createWallet creates a new descriptor wallet if it does not exist
@@ -266,20 +261,20 @@ func (c *Controller) bitcoinRPC(did string, bitcoindParams BitcoindRPCParams) []
 // An example of an incomplete descriptor:
 //
 // wsh(sortedmulti(2,[119dbcab/48h/1h/0h/2h]tpubDFYr9xD4WtT3yDBdX2qT2j2v6ZruqccwPKFwLguuJL99bWBrk6D2Lv1aPpRbFnw1sQUU9DM7ScMAkPRJqR1iXKhWMBNMAJ45QCTuvSZbzzv/0/*,[e650dc93/48h/1h/0h/2h]tpubDEijNAeHVNmm6wHwspPv4fV8mRkoMimeVCk47dExpN9e17jFti12BdjzL8MX17GvKEekRzknNuDoLy1Q8fujYfsWfCvjwYmjjENUpzwDy6B/0/*,[<fingerprint>/48h/1h/0h/2h]<xpub>/0/*))
-func (c *Controller) createWallet(incompleteDescriptor string) []byte {
+func (c *Controller) createWallet(incompleteDescriptor string) (map[string]string, error) {
 	derivationPath := utils.ExtractGordianKeyDerivationPath(incompleteDescriptor)
 	if derivationPath == "" {
-		return ErrorResponse(fmt.Errorf("gordian key derivation path not found"))
+		return nil, fmt.Errorf("gordian key derivation path not found")
 	}
 
 	path, err := utils.ParseDerivationPath(derivationPath)
 	if err != nil {
-		return ErrorResponse(err)
+		return nil, err
 	}
 
 	u, err := url.Parse(viper.GetString("bitcoind.rpcconnect"))
 	if err != nil {
-		return ErrorResponse(err)
+		return nil, err
 	}
 
 	connCfg := &rpcclient.ConnConfig{
@@ -291,7 +286,7 @@ func (c *Controller) createWallet(incompleteDescriptor string) []byte {
 	}
 	client, err := rpcclient.New(connCfg, nil)
 	if err != nil {
-		return ErrorResponse(err)
+		return nil, err
 	}
 	defer client.Shutdown()
 
@@ -305,10 +300,10 @@ func (c *Controller) createWallet(incompleteDescriptor string) []byte {
 				shouldCreateWallet = true
 				shouldImportDescriptors = true
 			default:
-				return ErrorResponse(err)
+				return nil, err
 			}
 		} else {
-			return ErrorResponse(err)
+			return nil, err
 		}
 	} else {
 		if walletInfo.KeyPoolSize == 0 && *walletInfo.KeyPoolSizeHDInternal == 0 {
@@ -318,27 +313,27 @@ func (c *Controller) createWallet(incompleteDescriptor string) []byte {
 
 	blockchainInfo, err := client.GetBlockChainInfo()
 	if err != nil {
-		return ErrorResponse(err)
+		return nil, err
 	}
 	keyFilePath := config.AbsoluteApplicationFilePath(viper.GetString("gordian_master_key_file"))
 	masterKey, err := createOrLoadMasterKey(blockchainInfo.Chain, keyFilePath)
 	if err != nil {
-		return ErrorResponse(err)
+		return nil, err
 	}
 	masterFingerprint, err := computeFingerprint(masterKey)
 	if err != nil {
-		return ErrorResponse(err)
+		return nil, err
 	}
 	gordianPrivateKey := masterKey
 	for _, i := range path {
 		gordianPrivateKey, err = gordianPrivateKey.Derive(i)
 		if err != nil {
-			return ErrorResponse(err)
+			return nil, err
 		}
 	}
 	gordianPublicKey, err := gordianPrivateKey.Neuter()
 	if err != nil {
-		return ErrorResponse(err)
+		return nil, err
 	}
 
 	if shouldCreateWallet {
@@ -357,7 +352,7 @@ func (c *Controller) createWallet(incompleteDescriptor string) []byte {
 		}
 
 		if _, err := client.RawRequest("createwallet", createWalletParams); err != nil {
-			return ErrorResponse(err)
+			return nil, err
 		}
 	}
 
@@ -369,13 +364,13 @@ func (c *Controller) createWallet(incompleteDescriptor string) []byte {
 		externalDescriptorWithoutChecksum := importedDescriptorReplacer.Replace(incompleteDescriptor)
 		externalDescriptorInfo, err := client.GetDescriptorInfo(externalDescriptorWithoutChecksum)
 		if err != nil {
-			return ErrorResponse(err)
+			return nil, err
 		}
 
 		internalDescriptorWithoutChecksum := strings.ReplaceAll(externalDescriptorWithoutChecksum, "/0/*", "/1/*")
 		internalDescriptorInfo, err := client.GetDescriptorInfo(internalDescriptorWithoutChecksum)
 		if err != nil {
-			return ErrorResponse(err)
+			return nil, err
 		}
 
 		descriptors := []map[string]interface{}{
@@ -394,7 +389,7 @@ func (c *Controller) createWallet(incompleteDescriptor string) []byte {
 		}
 		b, _ := json.Marshal(descriptors)
 		if _, err := client.RawRequest("importdescriptors", []json.RawMessage{b}); err != nil {
-			return ErrorResponse(err)
+			return nil, err
 		}
 	}
 
@@ -403,14 +398,14 @@ func (c *Controller) createWallet(incompleteDescriptor string) []byte {
 		"<xpub>", gordianPublicKey.String(),
 	)
 	gordianWalletDescriptor := accountMapDescriptorReplacer.Replace(incompleteDescriptor)
-	return ObjectResponse(map[string]interface{}{"descriptor": gordianWalletDescriptor})
+	return map[string]string{"descriptor": gordianWalletDescriptor}, nil
 }
 
 // finishPSBT finalizes the PSBT and broadcasts the transaction
-func (c *Controller) finishPSBT(psbt string) []byte {
+func (c *Controller) finishPSBT(psbt string) (map[string]string, error) {
 	u, err := url.Parse(viper.GetString("bitcoind.rpcconnect"))
 	if err != nil {
-		return ErrorResponse(err)
+		return nil, err
 	}
 	connCfg := &rpcclient.ConnConfig{
 		Host:         fmt.Sprintf("%s:%s", u.Hostname(), u.Port()),
@@ -421,22 +416,22 @@ func (c *Controller) finishPSBT(psbt string) []byte {
 	}
 	client, err := rpcclient.New(connCfg, nil)
 	if err != nil {
-		return ErrorResponse(err)
+		return nil, err
 	}
 	defer client.Shutdown()
 
 	processedPSBT, err := client.WalletProcessPsbt(psbt, btcjson.Bool(true), rpcclient.SigHashAll, btcjson.Bool(true))
 	if err != nil {
-		return ErrorResponse(err)
+		return nil, err
 	}
 	if !processedPSBT.Complete {
-		return ErrorResponse(fmt.Errorf("psbt not completed: %s", err))
+		return nil, fmt.Errorf("psbt not completed: %s", err)
 	}
 
 	psbtBytes, _ := json.Marshal(btcjson.String(processedPSBT.Psbt))
 	r, err := client.RawRequest("finalizepsbt", []json.RawMessage{psbtBytes})
 	if err != nil {
-		return ErrorResponse(err)
+		return nil, err
 	}
 	var finalizePSBTResult struct {
 		PSBT     string `json:"psbt"`
@@ -444,35 +439,35 @@ func (c *Controller) finishPSBT(psbt string) []byte {
 		Complete bool   `json:"complete"`
 	}
 	if err := json.Unmarshal(r, &finalizePSBTResult); err != nil {
-		return ErrorResponse(fmt.Errorf("unexpected response from finalizepsbt: %s", err))
+		return nil, fmt.Errorf("unexpected response from finalizepsbt: %s", err)
 	}
 	if !finalizePSBTResult.Complete {
-		return ErrorResponse(fmt.Errorf("psbt not finalized: %s", err))
+		return nil, fmt.Errorf("psbt not finalized: %s", err)
 	}
 
 	txBytes, _ := json.Marshal(btcjson.String(finalizePSBTResult.Hex))
 	r, err = client.RawRequest("sendrawtransaction", []json.RawMessage{txBytes})
 	if err != nil {
-		return ErrorResponse(err)
+		return nil, err
 	}
 	var txID string
 	if err := json.Unmarshal(r, &txID); err != nil {
-		return ErrorResponse(fmt.Errorf("unexpected response from sendrawtransaction: %s", err))
+		return nil, fmt.Errorf("unexpected response from sendrawtransaction: %s", err)
 	}
 
-	return ObjectResponse(map[string]string{"txid": txID})
+	return map[string]string{"txid": txID}, nil
 }
 
-func (c *Controller) setMember(memberDID string, accessMode AccessMode) []byte {
+func (c *Controller) setMember(memberDID string, accessMode AccessMode) (map[string]string, error) {
 	if err := c.store.UpdateMemberAccessMode(memberDID, accessMode); err != nil {
-		return ErrorResponse(err)
+		return nil, err
 	}
-	return ObjectResponse(map[string]string{"status": "ok"})
+	return map[string]string{"status": "ok"}, nil
 }
 
-func (c *Controller) removeMember(memberDID string) []byte {
+func (c *Controller) removeMember(memberDID string) (map[string]string, error) {
 	if err := c.store.RemoveMember(memberDID); err != nil {
-		return ErrorResponse(err)
+		return nil, err
 	}
-	return ObjectResponse(map[string]string{"status": "ok"})
+	return map[string]string{"status": "ok"}, nil
 }

@@ -1,7 +1,6 @@
 package main
 
 import (
-	"encoding/json"
 	"errors"
 	"testing"
 
@@ -31,16 +30,10 @@ func (suite *ControllerTestSuite) TestBind() {
 		store:    mockedStore,
 	}
 
-	b := c.bind(did)
-	resp := map[string]json.RawMessage{}
-	suite.NoError(json.Unmarshal(b, &resp))
-
-	suite.NotNil(resp["data"])
-
-	result := map[string]string{}
-	suite.NoError(json.Unmarshal(resp["data"], &result))
-	suite.Equal(result["identity"], suite.Identity.DID)
-	suite.True(key.VerifySignature(result["identity"], result["nonce"]+result["timestamp"], result["signature"]))
+	r, err := c.bind(did)
+	suite.NoError(err)
+	suite.Equal(r["identity"], suite.Identity.DID)
+	suite.True(key.VerifySignature(r["identity"], r["nonce"]+r["timestamp"], r["signature"]))
 }
 
 func (suite *ControllerTestSuite) TestBindAckWithValidNonceAndSignature() {
@@ -88,27 +81,16 @@ func (suite *ControllerTestSuite) TestBindAckWithValidNonceAndSignature() {
 	}
 
 	for _, t := range testCases {
-		b := c.bindACK(t.did, BindACKParams{
+		resp, err := c.bindACK(t.did, BindACKParams{
 			Timestamp: "1618456405107",
 			Signature: "3045022100d500b7ebbadeed51aaff844a0e7d741eb5bbf4c14b8d8476d87fae4ae02ab08b0220787dcaeae59327d1ff17db5b25386bf3250425a702a212e4fbd470b890d45ea6",
 		})
 
-		resp := map[string]json.RawMessage{}
-		suite.NoError(json.Unmarshal(b, &resp))
-
 		if t.err == nil {
-			suite.NotNil(resp["data"])
-
-			result := map[string]string{}
-			suite.NoError(json.Unmarshal(resp["data"], &result))
-			suite.Equal(result["status"], "ok")
+			suite.NoError(err)
+			suite.Equal(resp["status"], "ok")
 		} else {
-			suite.Nil(resp["data"])
-			suite.NotNil(resp["error"])
-
-			var err string
-			suite.NoError(json.Unmarshal(resp["error"], &err))
-			suite.Equal(err, "invalid binding ack signature")
+			suite.Error(err, "invalid binding ack signature")
 		}
 	}
 }

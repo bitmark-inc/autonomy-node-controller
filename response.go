@@ -5,9 +5,17 @@ import (
 	"fmt"
 )
 
+func CommandResponse(id string, data interface{}, err error) [][]byte {
+	if err != nil {
+		return [][]byte{ErrorResponse(id, err)}
+	}
+	return [][]byte{ObjectResponse(id, data)}
+}
+
 // ErrorResponse serializes an error into response bytes
-func ErrorResponse(err error) []byte {
+func ErrorResponse(id string, err error) []byte {
 	b, err := json.Marshal(map[string]string{
+		"id":    id,
 		"error": err.Error(),
 	})
 	if err != nil {
@@ -17,8 +25,9 @@ func ErrorResponse(err error) []byte {
 }
 
 // ObjectResponse serializes the given object into response bytes
-func ObjectResponse(object interface{}) []byte {
+func ObjectResponse(id string, object interface{}) []byte {
 	b, err := json.Marshal(map[string]interface{}{
+		"id":   id,
 		"data": object,
 	})
 	if err != nil {
