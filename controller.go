@@ -357,9 +357,11 @@ func (c *Controller) createWallet(incompleteDescriptor string) (map[string]strin
 	}
 
 	if shouldImportDescriptors {
+		// FIXME: check network
 		importedDescriptorReplacer := strings.NewReplacer(
 			"<fingerprint>", masterFingerprint,
 			"<xpub>", gordianPrivateKey.String(),
+			"<tpub>", gordianPrivateKey.String(),
 		)
 		externalDescriptorWithoutChecksum := importedDescriptorReplacer.Replace(incompleteDescriptor)
 		externalDescriptorInfo, err := client.GetDescriptorInfo(externalDescriptorWithoutChecksum)
@@ -393,9 +395,11 @@ func (c *Controller) createWallet(incompleteDescriptor string) (map[string]strin
 		}
 	}
 
+	// FIXME: check network
 	accountMapDescriptorReplacer := strings.NewReplacer(
 		"<fingerprint>", masterFingerprint,
 		"<xpub>", gordianPublicKey.String(),
+		"<tpub>", gordianPrivateKey.String(),
 	)
 	gordianWalletDescriptor := accountMapDescriptorReplacer.Replace(incompleteDescriptor)
 	return map[string]string{"descriptor": gordianWalletDescriptor}, nil
