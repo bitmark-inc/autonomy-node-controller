@@ -38,25 +38,26 @@ var (
 )
 
 var (
-	fullAccessBitcoinRPCBlockList = map[string]bool{
-		"unloadwallet": true,
+	fullAccessBitcoinRPCAllowList = map[string]bool{
+		"getbalances":            true,
+		"getblockchaininfo":      true,
+		"getmininginfo":          true,
+		"getnettotals":           true,
+		"getnetworkinfo":         true,
+		"getnewaddress":          true,
+		"getreceivedbyaddress":   true,
+		"gettransaction":         true,
+		"getwalletinfo":          true,
+		"listtransactions":       true,
+		"walletcreatefundedpsbt": true,
 	}
-	limitedAccessBitcoinRPCBlockList = map[string]bool{
-		"unloadwallet":       true,
-		"sendrawtransaction": true,
-	}
-	minimalAccessBitcoinRPCBlockList = map[string]bool{
-		"unloadwallet":       true,
-		"sendrawtransaction": true,
-		"getbalances":        true,
-	}
+	limitedAccessBitcoinRPCAllowList = map[string]bool{}
+	minimalAccessBitcoinRPCAllowList = map[string]bool{}
 
-	// TODO: we might need the allow list in the future
-	// once we know in more detail what the members will be allowed to access in the Group Pod
-	rpcBlockList = map[AccessMode]map[string]bool{
-		AccessModeFull:    fullAccessBitcoinRPCBlockList,
-		AccessModeLimited: limitedAccessBitcoinRPCBlockList,
-		AccessModeMinimal: minimalAccessBitcoinRPCBlockList,
+	bitcoinRPCAllowList = map[AccessMode]map[string]bool{
+		AccessModeFull:    fullAccessBitcoinRPCAllowList,
+		AccessModeLimited: limitedAccessBitcoinRPCAllowList,
+		AccessModeMinimal: minimalAccessBitcoinRPCAllowList,
 	}
 )
 
@@ -70,6 +71,6 @@ func HasBitcoinRPCAccess(rpcCommand string, mode AccessMode) bool {
 	if mode == AccessModeNotApplicant {
 		return false
 	}
-	_, blocked := rpcBlockList[mode][rpcCommand]
-	return !blocked
+	_, allowed := bitcoinRPCAllowList[mode][rpcCommand]
+	return allowed
 }
