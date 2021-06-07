@@ -88,6 +88,14 @@ The request to the pod controller is of the following form:
 
 ---
 
+### bitcoind
+
+#### Args
+
+```
+{"jsonrpc": "1.0", "id": "curltest", "method": "getblockchaininfo", "params": []}
+```
+
 ### create_wallet
 
 #### Args
