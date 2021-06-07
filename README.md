@@ -73,7 +73,8 @@ The request to the pod controller is of the following form:
 
 ```
 {
-  "nonce": "5e8976ef"
+  "timestamp": "1618456405107",
+  "signature": "3045022100d500b7ebbadeed51aaff844a0e7d741eb5bbf4c14b8d8476d87fae4ae02ab08b0220787dcaeae59327d1ff17db5b25386bf3250425a702a212e4fbd470b890d45ea6"
 }
 ```
 
