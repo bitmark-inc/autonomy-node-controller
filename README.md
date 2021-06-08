@@ -42,6 +42,8 @@ The request to the pod controller is of the following form:
 }
 ```
 
+The following command usage examples would only explain expected arguments.
+
 ### Command examples
 
 ---
@@ -65,6 +67,8 @@ The request to the pod controller is of the following form:
 }
 ```
 
+- `signature`: sign(key=pod_auth_key, msg=`nonce`+`timestamp`), which must be verified by the client
+
 ---
 
 ### bind_ack
@@ -77,6 +81,8 @@ The request to the pod controller is of the following form:
   "signature": "3045022100d500b7ebbadeed51aaff844a0e7d741eb5bbf4c14b8d8476d87fae4ae02ab08b0220787dcaeae59327d1ff17db5b25386bf3250425a702a212e4fbd470b890d45ea6"
 }
 ```
+
+- `signature`: sign(key=client_auth_key, msg=`nonce`+`timestamp`)
 
 #### Returns
 
@@ -92,8 +98,15 @@ The request to the pod controller is of the following form:
 
 #### Args
 
+Bitcoin JSON RPC payload. Take `getblockchaininfo` as an example:
+
 ```
-{"jsonrpc": "1.0", "id": "curltest", "method": "getblockchaininfo", "params": []}
+{
+  "jsonrpc": "1.0",
+  "id": "curltest",
+  "method": "getblockchaininfo",
+  "params": []
+}
 ```
 
 ### create_wallet
