@@ -10,6 +10,19 @@
 
 ### Fixed
 
+## [0.0.3] - 2021-06-08
+
+### Changed
+
+- Include the request ID in every response
+- Use the allow list to manage Bitcoin RPC usage
+
+### Fixed
+
+- Accept incomplete wallet descriptors for testnet
+- Fix descriptors not loaded
+- Fix the wrong command name used in the binding tool
+
 ## [0.0.2] - 2021-05-12
 
 ### Changed
