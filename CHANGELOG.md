@@ -10,6 +10,12 @@
 
 ### Fixed
 
+## [0.0.4] - 2021-06-15
+
+### Fixed
+
+- Prevent unnecessary restarts if the WebSocket connection is closed or the API server is temporarily unavailable.
+
 ## [0.0.3] - 2021-06-08
 
 ### Changed
