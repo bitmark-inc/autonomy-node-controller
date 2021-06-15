@@ -28,8 +28,12 @@ var renewBefore = 10 * time.Minute / time.Second
 
 func main() {
 	var configFile string
+	var retryInterval, retryCounts int
+
 	flag.StringVar(&configFile, "c", "./config.yaml", "[optional] path of configuration file")
 	flag.StringVar(&configFile, "config", "./config.yaml", "[optional] path of configuration file")
+	flag.IntVar(&retryInterval, "retry", 10, "[optional] retry intervals between each messaging API")
+	flag.IntVar(&retryCounts, "count", 12, "[optional] retry counts for messaging API")
 	flag.Parse()
 
 	config.LoadConfig(configFile)
@@ -46,11 +50,20 @@ func main() {
 		WithField("created", created).
 		Info("controller initialized")
 
-	interrupt := make(chan os.Signal, 1)
-	signal.Notify(interrupt, os.Interrupt)
+	for c := 0; c < retryCounts; c++ {
+		if c != 0 {
+			time.Sleep(time.Duration(retryInterval) * time.Second)
+		}
 
-	if err := i.Auth(); err != nil {
-		log.WithError(err).Panic("pod authentication fail")
+		if c == retryCounts-1 {
+			log.WithField("retry", retryCounts).Fatal("maximum retries exceeded for pod authentication")
+		}
+
+		if err := i.Auth(); err != nil {
+			log.WithError(err).Error("pod authentication fail")
+		} else {
+			break
+		}
 	}
 
 	// The goroutine will continuously check auth_token and re-request a new one if
@@ -67,13 +80,13 @@ func main() {
 			// parse the jwt claim without verified the token signature
 			t, _, err := new(jwt.Parser).ParseUnverified(token, &jwt.StandardClaims{})
 			if err != nil {
-				log.WithError(err).Panic("fail to refresh token")
+				log.WithError(err).Panic("fail to parse token")
 			}
 
 			if claims, ok := t.Claims.(*jwt.StandardClaims); ok {
 				if time.Now().Unix() > (claims.ExpiresAt - int64(renewBefore)) {
 					if err := i.Auth(); err != nil {
-						log.WithError(err).Panic("fail to refresh token")
+						log.WithError(err).Error("fail to refresh token")
 					}
 					log.Info("successfully refresh a new token")
 				} else {
@@ -87,6 +100,9 @@ func main() {
 		}
 	}(time.Minute)
 
+	interrupt := make(chan os.Signal, 1)
+	signal.Notify(interrupt, os.Interrupt)
+
 CONNECTION_LOOP:
 	// This is the main loop for maintaining a persistant websocket connection to API server
 	for {
@@ -98,23 +114,38 @@ CONNECTION_LOOP:
 			authToken,
 			config.AbsoluteApplicationFilePath(viper.GetString("messaging.db_name")))
 
-		if err := messagingClient.RegisterAccount(); err != nil {
-			log.Fatalf("registering account, error: %s", err)
+		var ws *messaging.WSMessagingClient
+		for i := 0; i < retryCounts; i++ {
+			if i != 0 {
+				time.Sleep(time.Duration(retryInterval) * time.Second)
+			}
+			if err := messagingClient.RegisterAccount(); err != nil {
+				log.WithError(err).Error("registering account")
+				continue
+			}
+
+			if err := messagingClient.RegisterKeys(); err != nil {
+				log.WithError(err).Error("failed to register pre-keys on startup")
+				continue
+			}
+
+			c, err := messagingClient.NewWSClient()
+			if err != nil {
+				log.WithError(err).Error("fail to establish websocket connection")
+				continue
+			}
+
+			ws = c
+			break
 		}
 
-		if err := messagingClient.RegisterKeys(); err != nil {
-			log.WithError(err).Fatalf("failed to register pre-keys on startup")
+		if ws == nil {
+			log.WithField("retry", retryCounts).Fatalf("maximum retries exceeded for establishing the websocket connection")
 		}
 
-		ws, err := messagingClient.NewWSClient()
-		if err != nil {
-			log.WithError(err).Panic("fail to establish websocket connection")
-		}
-
-		addKey := make(chan struct{}, 1)
+		addKey := make(chan struct{}, 0)
 		go func(refillInterval time.Duration) {
-			for {
-				<-addKey
+			for range addKey {
 				log.Debug("refill pre-keys")
 				messagingClient.RefreshToken(i.AuthToken())
 
@@ -123,21 +154,28 @@ CONNECTION_LOOP:
 				}
 				time.Sleep(refillInterval)
 			}
+			log.Debug("add-key loop closed")
 		}(time.Second)
 
 		// This is a loop to watch and process new messages
+	MESSAGE_LOOP:
 		for {
 			select {
 			case <-interrupt:
 				log.Info("service interrupted")
+				close(addKey)
 				ws.Close()
+				messagingClient.Close()
 				break CONNECTION_LOOP
 			case m := <-ws.WhisperMessages():
 				// there will be a very last nil message if a connection is closed from the server
 				if m == nil {
 					log.Info("connection closed by server")
+					close(addKey)
 					ws.Close()
-					break CONNECTION_LOOP
+					messagingClient.Close()
+					// break the MESSAGE_LOOP so that the service will start re-connecting the API server
+					break MESSAGE_LOOP
 				}
 
 				log.WithField("message", m).Debug("receive message")
