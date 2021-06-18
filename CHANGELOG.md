@@ -10,6 +10,12 @@
 
 ### Fixed
 
+## [0.0.5] - 2021-06-18
+
+### Fixed
+
+- Set the message buffer size to 1000 to prevent blocking.
+
 ## [0.0.4] - 2021-06-15
 
 ### Fixed
