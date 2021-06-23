@@ -115,16 +115,25 @@ func (c *Controller) Process(m *messaging.Message) [][]byte {
 		if err := json.Unmarshal(req.Args, &params); err != nil {
 			return CommandResponse(req.ID, nil, fmt.Errorf("bad request for create_wallet: %s", err.Error()))
 		}
-
-		resp, err := c.createWallet(params.Descriptor)
+		client, err := NewBitcoinRPCClient()
+		if err != nil {
+			return CommandResponse(req.ID, nil, errors.New("Establish bitcoin rpc client fail"))
+		}
+		keyFilePath := config.AbsoluteApplicationFilePath(viper.GetString("gordian_master_key_file"))
+		resp, err := c.createWallet(client, keyFilePath, params.Descriptor)
+		client.Shutdown()
 		return CommandResponse(req.ID, resp, err)
 	case "finish_psbt":
 		var params FinishPSBTRPCParams
 		if err := json.Unmarshal(req.Args, &params); err != nil {
 			return CommandResponse(req.ID, nil, fmt.Errorf("bad request for finish_psbt: %s", err.Error()))
 		}
-
-		resp, err := c.finishPSBT(params.PSBT)
+		client, err := NewBitcoinRPCClient()
+		if err != nil {
+			return CommandResponse(req.ID, nil, errors.New("Establish bitcoin rpc client fail"))
+		}
+		resp, err := c.finishPSBT(client, params.PSBT)
+		client.Shutdown()
 		return CommandResponse(req.ID, resp, err)
 	case "set_member":
 		var params UpdateMemberAccessModeRPCParams
@@ -265,7 +274,7 @@ func (c *Controller) bitcoinRPC(did string, bitcoindParams BitcoindRPCParams) (m
 // An example of an incomplete descriptor:
 //
 // wsh(sortedmulti(2,[119dbcab/48h/1h/0h/2h]tpubDFYr9xD4WtT3yDBdX2qT2j2v6ZruqccwPKFwLguuJL99bWBrk6D2Lv1aPpRbFnw1sQUU9DM7ScMAkPRJqR1iXKhWMBNMAJ45QCTuvSZbzzv/0/*,[e650dc93/48h/1h/0h/2h]tpubDEijNAeHVNmm6wHwspPv4fV8mRkoMimeVCk47dExpN9e17jFti12BdjzL8MX17GvKEekRzknNuDoLy1Q8fujYfsWfCvjwYmjjENUpzwDy6B/0/*,[<fingerprint>/48h/1h/0h/2h]<xpub>/0/*))
-func (c *Controller) createWallet(incompleteDescriptor string) (map[string]string, error) {
+func (c *Controller) createWallet(client RPCClient, keyFilePath string, incompleteDescriptor string) (map[string]string, error) {
 	derivationPath := utils.ExtractGordianKeyDerivationPath(incompleteDescriptor)
 	if derivationPath == "" {
 		return nil, fmt.Errorf("gordian key derivation path not found")
@@ -275,12 +284,6 @@ func (c *Controller) createWallet(incompleteDescriptor string) (map[string]strin
 	if err != nil {
 		return nil, err
 	}
-
-	client, err := NewBitcoinRPCClient()
-	if err != nil {
-		return nil, err
-	}
-	defer client.Shutdown()
 
 	shouldCreateWallet := false
 	shouldImportDescriptors := false
@@ -307,7 +310,6 @@ func (c *Controller) createWallet(incompleteDescriptor string) (map[string]strin
 	if err != nil {
 		return nil, err
 	}
-	keyFilePath := config.AbsoluteApplicationFilePath(viper.GetString("gordian_master_key_file"))
 	masterKey, err := createOrLoadMasterKey(blockchainInfo.Chain, keyFilePath)
 	if err != nil {
 		return nil, err
@@ -398,13 +400,7 @@ func (c *Controller) createWallet(incompleteDescriptor string) (map[string]strin
 }
 
 // finishPSBT finalizes the PSBT and broadcasts the transaction
-func (c *Controller) finishPSBT(psbt string) (map[string]string, error) {
-	client, err := NewBitcoinRPCClient()
-	if err != nil {
-		return nil, err
-	}
-	defer client.Shutdown()
-
+func (c *Controller) finishPSBT(client RPCClient, psbt string) (map[string]string, error) {
 	processedPSBT, err := client.WalletProcessPsbt(psbt, btcjson.Bool(true), rpcclient.SigHashAll, btcjson.Bool(true))
 	if err != nil {
 		return nil, err

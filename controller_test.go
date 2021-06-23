@@ -7,8 +7,11 @@ package main
 
 import (
 	"errors"
+	"os"
+	"strings"
 	"testing"
 
+	"github.com/btcsuite/btcd/btcjson"
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/suite"
 
@@ -137,6 +140,67 @@ func (suite *ControllerTestSuite) TestHasCorrectBindingState() {
 
 	suite.True(c.hasCorrectBindingState(didWithBinding, "create_wallet"))
 	suite.False(c.hasCorrectBindingState(didWithoutBinding, "create_wallet"))
+}
+
+func (suite *ControllerTestSuite) TestCreateWallet() {
+	incompleteDescriptor := "wsh(sortedmulti(2,[119dbcab/48h/1h/0h/2h]tpubDFYr9xD4WtT3yDBdX2qT2j2v6ZruqccwPKFwLguuJL99bWBrk6D2Lv1aPpRbFnw1sQUU9DM7ScMAkPRJqR1iXKhWMBNMAJ45QCTuvSZbzzv/0/*,[e650dc93/48h/1h/0h/2h]tpubDEijNAeHVNmm6wHwspPv4fV8mRkoMimeVCk47dExpN9e17jFti12BdjzL8MX17GvKEekRzknNuDoLy1Q8fujYfsWfCvjwYmjjENUpzwDy6B/0/*,[<fingerprint>/48h/1h/0h/2h]<xpub>/0/*))"
+	tempMasterKey := "tprv8ZgxMBicQKsPdbrPFhUK3QmhRsWiRYrCPuftQDnpGS1pDMhvUhVrLQvH8yxLTS7P5DCRwn55f9xHh8x97extRmrN5BGqYxuAtGbeKYn78MH"
+	tempKeyFilePath := "/tmp/test-master-key"
+	x, _ := os.Create(tempKeyFilePath)
+	x.WriteString(tempMasterKey)
+	x.Close()
+	masterFingerprint := "da8a7377"
+	gordianPrivateKey := "tprv8iat9qorVppXiivghjfoNwgGfL4ejNZNWyURC78sBnM9Xur23w743PUJ2CN95gkC7THPrYKAhPCLQ1Qsf5Brq3HrqWCARCCWD6UZmFe1HA4"
+	gordianPublicKey := "tpubDFGvJFr6eCWCcBxUbPLPnMLPEMaathkH6H5CUdBAc49YNQ6ngKveDt6ACL9FG7yVPCGPoejizvdYLumw4YmsyUMZfbD3xRyb3DAXd5y9NFr"
+
+	importedDescriptorReplacer := strings.NewReplacer(
+		"<fingerprint>", masterFingerprint,
+		"<xpub>", gordianPrivateKey,
+		"<tpub>", gordianPrivateKey,
+	)
+
+	externalDescriptorWithoutChecksum := importedDescriptorReplacer.Replace(incompleteDescriptor)
+	internalDescriptorWithoutChecksum := strings.ReplaceAll(externalDescriptorWithoutChecksum, "/0/*", "/1/*")
+
+	accountMapDescriptorReplacer := strings.NewReplacer(
+		"<fingerprint>", masterFingerprint,
+		"<xpub>", gordianPublicKey,
+		"<tpub>", gordianPrivateKey,
+	)
+
+	gordianWalletDescriptor := accountMapDescriptorReplacer.Replace(incompleteDescriptor)
+
+	mockCtl := gomock.NewController(suite.T())
+	defer func() {
+		os.Remove(tempKeyFilePath)
+		mockCtl.Finish()
+	}()
+
+	// wallet exist but not import Descriptor
+	mockedRPCClient := NewMockRPCClient(mockCtl)
+	mockedRPCClient.EXPECT().GetWalletInfo().Times(1).Return(&btcjson.GetWalletInfoResult{KeyPoolSize: 0, KeyPoolSizeHDInternal: new(int)}, nil)
+	mockedRPCClient.EXPECT().GetBlockChainInfo().Times(1).Return(&btcjson.GetBlockChainInfoResult{Chain: "test"}, nil)
+	mockedRPCClient.EXPECT().GetDescriptorInfo(externalDescriptorWithoutChecksum).Times(1).Return(&btcjson.GetDescriptorInfoResult{Checksum: "a"}, nil)
+	mockedRPCClient.EXPECT().GetDescriptorInfo(internalDescriptorWithoutChecksum).Times(1).Return(&btcjson.GetDescriptorInfoResult{Checksum: "b"}, nil)
+	mockedRPCClient.EXPECT().RawRequest("importdescriptors", gomock.Any()).Times(1).Return(nil, nil)
+
+	// wallet not exist
+	mockedRPCClient2 := NewMockRPCClient(mockCtl)
+	mockedRPCClient2.EXPECT().GetWalletInfo().Times(1).Return(nil, &btcjson.RPCError{Code: btcjson.ErrRPCWalletNotFound})
+	mockedRPCClient2.EXPECT().GetBlockChainInfo().Times(1).Return(&btcjson.GetBlockChainInfoResult{Chain: "test"}, nil)
+	mockedRPCClient2.EXPECT().RawRequest("createwallet", gomock.Any()).Times(1).Return(nil, nil)
+	mockedRPCClient2.EXPECT().GetDescriptorInfo(externalDescriptorWithoutChecksum).Times(1).Return(&btcjson.GetDescriptorInfoResult{Checksum: "a"}, nil)
+	mockedRPCClient2.EXPECT().GetDescriptorInfo(internalDescriptorWithoutChecksum).Times(1).Return(&btcjson.GetDescriptorInfoResult{Checksum: "b"}, nil)
+	mockedRPCClient2.EXPECT().RawRequest("importdescriptors", gomock.Any()).Times(1).Return(nil, nil)
+
+	c := Controller{}
+
+	result, err := c.createWallet(mockedRPCClient, tempKeyFilePath, incompleteDescriptor)
+	suite.NoError(err)
+	suite.Equal(map[string]string{"descriptor": gordianWalletDescriptor}, result)
+	result, err = c.createWallet(mockedRPCClient2, tempKeyFilePath, incompleteDescriptor)
+	suite.NoError(err)
+	suite.Equal(map[string]string{"descriptor": gordianWalletDescriptor}, result)
 }
 
 func TestControllerTestSuite(t *testing.T) {
