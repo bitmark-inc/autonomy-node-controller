@@ -13,7 +13,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
-	"net/url"
 	"strings"
 	"time"
 
@@ -277,19 +276,7 @@ func (c *Controller) createWallet(incompleteDescriptor string) (map[string]strin
 		return nil, err
 	}
 
-	u, err := url.Parse(viper.GetString("bitcoind.rpcconnect"))
-	if err != nil {
-		return nil, err
-	}
-
-	connCfg := &rpcclient.ConnConfig{
-		Host:         fmt.Sprintf("%s:%s", u.Hostname(), u.Port()),
-		User:         viper.GetString("bitcoind.rpcuser"),
-		Pass:         viper.GetString("bitcoind.rpcpassword"),
-		HTTPPostMode: true,
-		DisableTLS:   true,
-	}
-	client, err := rpcclient.New(connCfg, nil)
+	client, err := NewBitcoinRPCClient()
 	if err != nil {
 		return nil, err
 	}
@@ -412,18 +399,7 @@ func (c *Controller) createWallet(incompleteDescriptor string) (map[string]strin
 
 // finishPSBT finalizes the PSBT and broadcasts the transaction
 func (c *Controller) finishPSBT(psbt string) (map[string]string, error) {
-	u, err := url.Parse(viper.GetString("bitcoind.rpcconnect"))
-	if err != nil {
-		return nil, err
-	}
-	connCfg := &rpcclient.ConnConfig{
-		Host:         fmt.Sprintf("%s:%s", u.Hostname(), u.Port()),
-		User:         viper.GetString("bitcoind.rpcuser"),
-		Pass:         viper.GetString("bitcoind.rpcpassword"),
-		HTTPPostMode: true,
-		DisableTLS:   true,
-	}
-	client, err := rpcclient.New(connCfg, nil)
+	client, err := NewBitcoinRPCClient()
 	if err != nil {
 		return nil, err
 	}
