@@ -13,31 +13,31 @@ import (
 	gomock "github.com/golang/mock/gomock"
 )
 
-// MockrpcClient is a mock of rpcClient interface.
-type MockrpcClient struct {
+// MockRPCClient is a mock of RPCClient interface.
+type MockRPCClient struct {
 	ctrl     *gomock.Controller
-	recorder *MockrpcClientMockRecorder
+	recorder *MockRPCClientMockRecorder
 }
 
-// MockrpcClientMockRecorder is the mock recorder for MockrpcClient.
-type MockrpcClientMockRecorder struct {
-	mock *MockrpcClient
+// MockRPCClientMockRecorder is the mock recorder for MockRPCClient.
+type MockRPCClientMockRecorder struct {
+	mock *MockRPCClient
 }
 
-// NewMockrpcClient creates a new mock instance.
-func NewMockrpcClient(ctrl *gomock.Controller) *MockrpcClient {
-	mock := &MockrpcClient{ctrl: ctrl}
-	mock.recorder = &MockrpcClientMockRecorder{mock}
+// NewMockRPCClient creates a new mock instance.
+func NewMockRPCClient(ctrl *gomock.Controller) *MockRPCClient {
+	mock := &MockRPCClient{ctrl: ctrl}
+	mock.recorder = &MockRPCClientMockRecorder{mock}
 	return mock
 }
 
 // EXPECT returns an object that allows the caller to indicate expected use.
-func (m *MockrpcClient) EXPECT() *MockrpcClientMockRecorder {
+func (m *MockRPCClient) EXPECT() *MockRPCClientMockRecorder {
 	return m.recorder
 }
 
 // GetBlockChainInfo mocks base method.
-func (m *MockrpcClient) GetBlockChainInfo() (*btcjson.GetBlockChainInfoResult, error) {
+func (m *MockRPCClient) GetBlockChainInfo() (*btcjson.GetBlockChainInfoResult, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetBlockChainInfo")
 	ret0, _ := ret[0].(*btcjson.GetBlockChainInfoResult)
@@ -46,13 +46,13 @@ func (m *MockrpcClient) GetBlockChainInfo() (*btcjson.GetBlockChainInfoResult, e
 }
 
 // GetBlockChainInfo indicates an expected call of GetBlockChainInfo.
-func (mr *MockrpcClientMockRecorder) GetBlockChainInfo() *gomock.Call {
+func (mr *MockRPCClientMockRecorder) GetBlockChainInfo() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetBlockChainInfo", reflect.TypeOf((*MockrpcClient)(nil).GetBlockChainInfo))
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetBlockChainInfo", reflect.TypeOf((*MockRPCClient)(nil).GetBlockChainInfo))
 }
 
 // GetDescriptorInfo mocks base method.
-func (m *MockrpcClient) GetDescriptorInfo(descriptor string) (*btcjson.GetDescriptorInfoResult, error) {
+func (m *MockRPCClient) GetDescriptorInfo(descriptor string) (*btcjson.GetDescriptorInfoResult, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetDescriptorInfo", descriptor)
 	ret0, _ := ret[0].(*btcjson.GetDescriptorInfoResult)
@@ -61,13 +61,13 @@ func (m *MockrpcClient) GetDescriptorInfo(descriptor string) (*btcjson.GetDescri
 }
 
 // GetDescriptorInfo indicates an expected call of GetDescriptorInfo.
-func (mr *MockrpcClientMockRecorder) GetDescriptorInfo(descriptor interface{}) *gomock.Call {
+func (mr *MockRPCClientMockRecorder) GetDescriptorInfo(descriptor interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetDescriptorInfo", reflect.TypeOf((*MockrpcClient)(nil).GetDescriptorInfo), descriptor)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetDescriptorInfo", reflect.TypeOf((*MockRPCClient)(nil).GetDescriptorInfo), descriptor)
 }
 
 // GetWalletInfo mocks base method.
-func (m *MockrpcClient) GetWalletInfo() (*btcjson.GetWalletInfoResult, error) {
+func (m *MockRPCClient) GetWalletInfo() (*btcjson.GetWalletInfoResult, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetWalletInfo")
 	ret0, _ := ret[0].(*btcjson.GetWalletInfoResult)
@@ -76,13 +76,13 @@ func (m *MockrpcClient) GetWalletInfo() (*btcjson.GetWalletInfoResult, error) {
 }
 
 // GetWalletInfo indicates an expected call of GetWalletInfo.
-func (mr *MockrpcClientMockRecorder) GetWalletInfo() *gomock.Call {
+func (mr *MockRPCClientMockRecorder) GetWalletInfo() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetWalletInfo", reflect.TypeOf((*MockrpcClient)(nil).GetWalletInfo))
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetWalletInfo", reflect.TypeOf((*MockRPCClient)(nil).GetWalletInfo))
 }
 
 // RawRequest mocks base method.
-func (m *MockrpcClient) RawRequest(method string, params []json.RawMessage) (json.RawMessage, error) {
+func (m *MockRPCClient) RawRequest(method string, params []json.RawMessage) (json.RawMessage, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "RawRequest", method, params)
 	ret0, _ := ret[0].(json.RawMessage)
@@ -91,25 +91,25 @@ func (m *MockrpcClient) RawRequest(method string, params []json.RawMessage) (jso
 }
 
 // RawRequest indicates an expected call of RawRequest.
-func (mr *MockrpcClientMockRecorder) RawRequest(method, params interface{}) *gomock.Call {
+func (mr *MockRPCClientMockRecorder) RawRequest(method, params interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RawRequest", reflect.TypeOf((*MockrpcClient)(nil).RawRequest), method, params)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RawRequest", reflect.TypeOf((*MockRPCClient)(nil).RawRequest), method, params)
 }
 
 // Shutdown mocks base method.
-func (m *MockrpcClient) Shutdown() {
+func (m *MockRPCClient) Shutdown() {
 	m.ctrl.T.Helper()
 	m.ctrl.Call(m, "Shutdown")
 }
 
 // Shutdown indicates an expected call of Shutdown.
-func (mr *MockrpcClientMockRecorder) Shutdown() *gomock.Call {
+func (mr *MockRPCClientMockRecorder) Shutdown() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Shutdown", reflect.TypeOf((*MockrpcClient)(nil).Shutdown))
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Shutdown", reflect.TypeOf((*MockRPCClient)(nil).Shutdown))
 }
 
 // WalletProcessPsbt mocks base method.
-func (m *MockrpcClient) WalletProcessPsbt(psbt string, sign *bool, sighashType rpcclient.SigHashType, bip32Derivs *bool) (*btcjson.WalletProcessPsbtResult, error) {
+func (m *MockRPCClient) WalletProcessPsbt(psbt string, sign *bool, sighashType rpcclient.SigHashType, bip32Derivs *bool) (*btcjson.WalletProcessPsbtResult, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "WalletProcessPsbt", psbt, sign, sighashType, bip32Derivs)
 	ret0, _ := ret[0].(*btcjson.WalletProcessPsbtResult)
@@ -118,7 +118,7 @@ func (m *MockrpcClient) WalletProcessPsbt(psbt string, sign *bool, sighashType r
 }
 
 // WalletProcessPsbt indicates an expected call of WalletProcessPsbt.
-func (mr *MockrpcClientMockRecorder) WalletProcessPsbt(psbt, sign, sighashType, bip32Derivs interface{}) *gomock.Call {
+func (mr *MockRPCClientMockRecorder) WalletProcessPsbt(psbt, sign, sighashType, bip32Derivs interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "WalletProcessPsbt", reflect.TypeOf((*MockrpcClient)(nil).WalletProcessPsbt), psbt, sign, sighashType, bip32Derivs)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "WalletProcessPsbt", reflect.TypeOf((*MockRPCClient)(nil).WalletProcessPsbt), psbt, sign, sighashType, bip32Derivs)
 }

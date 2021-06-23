@@ -10,7 +10,7 @@ import (
 	"github.com/spf13/viper"
 )
 
-type rpcClient interface {
+type RPCClient interface {
 	Shutdown()
 	GetWalletInfo() (*btcjson.GetWalletInfoResult, error)
 	GetBlockChainInfo() (*btcjson.GetBlockChainInfoResult, error)
@@ -19,7 +19,7 @@ type rpcClient interface {
 	WalletProcessPsbt(psbt string, sign *bool, sighashType rpcclient.SigHashType, bip32Derivs *bool) (*btcjson.WalletProcessPsbtResult, error)
 }
 
-func NewBitcoinRPCClient() (rpcClient, error) {
+func NewBitcoinRPCClient() (RPCClient, error) {
 	u, err := url.Parse(viper.GetString("bitcoind.rpcconnect"))
 	if err != nil {
 		return nil, err
