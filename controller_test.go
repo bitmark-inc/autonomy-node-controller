@@ -6,12 +6,14 @@
 package main
 
 import (
+	"encoding/json"
 	"errors"
 	"os"
 	"strings"
 	"testing"
 
 	"github.com/btcsuite/btcd/btcjson"
+	"github.com/btcsuite/btcd/rpcclient"
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/suite"
 
@@ -201,6 +203,38 @@ func (suite *ControllerTestSuite) TestCreateWallet() {
 	result, err = c.createWallet(mockedRPCClient2, tempKeyFilePath, incompleteDescriptor)
 	suite.NoError(err)
 	suite.Equal(map[string]string{"descriptor": gordianWalletDescriptor}, result)
+}
+
+func (suite *ControllerTestSuite) TestFinishPSBT() {
+	type finalizePSBTResult struct {
+		PSBT     string `json:"psbt"`
+		Hex      string `json:"hex"`
+		Complete bool   `json:"complete"`
+	}
+	PSBTResult, _ := json.Marshal(&finalizePSBTResult{
+		PSBT:     "psbt",
+		Hex:      "hex",
+		Complete: true,
+	})
+	psbtBytes, _ := json.Marshal(btcjson.String("a"))
+	txBytes, _ := json.Marshal(btcjson.String("hex"))
+	txID, _ := json.Marshal("H")
+
+	mockCtl := gomock.NewController(suite.T())
+	defer func() {
+		mockCtl.Finish()
+	}()
+
+	mockedRPCClient := NewMockRPCClient(mockCtl)
+	mockedRPCClient.EXPECT().WalletProcessPsbt("PSBT", btcjson.Bool(true), rpcclient.SigHashAll, btcjson.Bool(true)).Times(1).Return(&btcjson.WalletProcessPsbtResult{Complete: true, Psbt: "a"}, nil)
+	mockedRPCClient.EXPECT().RawRequest("finalizepsbt", []json.RawMessage{psbtBytes}).Times(1).Return(PSBTResult, nil)
+	mockedRPCClient.EXPECT().RawRequest("sendrawtransaction", []json.RawMessage{txBytes}).Times(1).Return(txID, nil)
+
+	c := Controller{}
+
+	result, err := c.finishPSBT(mockedRPCClient, "PSBT")
+	suite.NoError(err)
+	suite.Equal(map[string]string{"txid": "H"}, result)
 }
 
 func TestControllerTestSuite(t *testing.T) {
