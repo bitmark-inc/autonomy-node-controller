@@ -211,14 +211,15 @@ func (suite *ControllerTestSuite) TestFinishPSBT() {
 		Hex      string `json:"hex"`
 		Complete bool   `json:"complete"`
 	}
-	PSBTResult, _ := json.Marshal(&finalizePSBTResult{
+	psbtBytes, _ := json.Marshal("ProcessPsbt")
+	PSBTResult := finalizePSBTResult{
 		PSBT:     "psbt",
 		Hex:      "hex",
 		Complete: true,
-	})
-	psbtBytes, _ := json.Marshal(btcjson.String("a"))
-	txBytes, _ := json.Marshal(btcjson.String("hex"))
-	txID, _ := json.Marshal("H")
+	}
+	PSBTResultBytes, _ := json.Marshal(PSBTResult)
+	hexBytes, _ := json.Marshal(PSBTResult.Hex)
+	txID, _ := json.Marshal("txID")
 
 	mockCtl := gomock.NewController(suite.T())
 	defer func() {
@@ -226,15 +227,15 @@ func (suite *ControllerTestSuite) TestFinishPSBT() {
 	}()
 
 	mockedRPCClient := NewMockRPCClient(mockCtl)
-	mockedRPCClient.EXPECT().WalletProcessPsbt("PSBT", btcjson.Bool(true), rpcclient.SigHashAll, btcjson.Bool(true)).Times(1).Return(&btcjson.WalletProcessPsbtResult{Complete: true, Psbt: "a"}, nil)
-	mockedRPCClient.EXPECT().RawRequest("finalizepsbt", []json.RawMessage{psbtBytes}).Times(1).Return(PSBTResult, nil)
-	mockedRPCClient.EXPECT().RawRequest("sendrawtransaction", []json.RawMessage{txBytes}).Times(1).Return(txID, nil)
+	mockedRPCClient.EXPECT().WalletProcessPsbt("PSBT", btcjson.Bool(true), rpcclient.SigHashAll, btcjson.Bool(true)).Times(1).Return(&btcjson.WalletProcessPsbtResult{Complete: true, Psbt: "ProcessPsbt"}, nil)
+	mockedRPCClient.EXPECT().RawRequest("finalizepsbt", []json.RawMessage{psbtBytes}).Times(1).Return(PSBTResultBytes, nil)
+	mockedRPCClient.EXPECT().RawRequest("sendrawtransaction", []json.RawMessage{hexBytes}).Times(1).Return(txID, nil)
 
 	c := Controller{}
 
 	result, err := c.finishPSBT(mockedRPCClient, "PSBT")
 	suite.NoError(err)
-	suite.Equal(map[string]string{"txid": "H"}, result)
+	suite.Equal(map[string]string{"txid": "txID"}, result)
 }
 
 func TestControllerTestSuite(t *testing.T) {
