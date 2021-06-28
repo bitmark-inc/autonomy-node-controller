@@ -90,8 +90,8 @@ func (c *Controller) Process(m *messaging.Message) [][]byte {
 
 	accessMode := c.accessMode(m.Source)
 
-	if !HasRPCAccess(req.Command, accessMode) {
-		return CommandResponse(req.ID, nil, errors.New("not allowed to use this RPC"))
+	if !HasCommandAccess(req.Command, accessMode) {
+		return CommandResponse(req.ID, nil, errors.New("not allowed to use this command"))
 	}
 
 	if !c.hasCorrectBindingState(m.Source, req.Command) {
@@ -141,6 +141,15 @@ func (c *Controller) Process(m *messaging.Message) [][]byte {
 			return CommandResponse(req.ID, nil, fmt.Errorf("bad request for remove_member: %s", err.Error()))
 		}
 		resp, err := c.removeMember(params.MemberDID)
+		return CommandResponse(req.ID, resp, err)
+	case "start_bitcoind":
+		resp, err := c.startBitcoind()
+		return CommandResponse(req.ID, resp, err)
+	case "stop_bitcoind":
+		resp, err := c.stopBitcoind()
+		return CommandResponse(req.ID, resp, err)
+	case "get_bitcoind_status":
+		resp, err := c.getBitcoindStatus()
 		return CommandResponse(req.ID, resp, err)
 	case "bitcoind":
 		var params BitcoindRPCParams
@@ -479,4 +488,55 @@ func (c *Controller) removeMember(memberDID string) (map[string]string, error) {
 		return nil, err
 	}
 	return map[string]string{"status": "ok"}, nil
+}
+
+func (c *Controller) startBitcoind() (map[string]string, error) {
+	req, err := http.NewRequest("POST", viper.GetString("bitcoind-ctl.endpoint")+"/start", nil)
+	if err != nil {
+		return nil, err
+	}
+	var status string
+	c.getResponseJson(req, &status)
+	return map[string]string{"status": status}, nil
+}
+
+func (c *Controller) stopBitcoind() (map[string]string, error) {
+	req, err := http.NewRequest("POST", viper.GetString("bitcoind-ctl.endpoint")+"/stop", nil)
+	if err != nil {
+		return nil, err
+	}
+	var status string
+	c.getResponseJson(req, &status)
+	return map[string]string{"status": status}, nil
+}
+
+// TODO: wait for api response structure
+func (c *Controller) getBitcoindStatus() (map[string]string, error) {
+	req, err := http.NewRequest("GET", viper.GetString("bitcoind-ctl.endpoint")+"/status", nil)
+	if err != nil {
+		return nil, err
+	}
+	var resp string
+	c.getResponseJson(req, &resp)
+	return map[string]string{"status": resp}, nil
+}
+
+func (c *Controller) getResponseJson(req *http.Request, result interface{}) error {
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != 200 {
+		return fmt.Errorf("fail to request bitcoind-ctl api")
+	}
+
+	err = json.NewDecoder(resp.Body).Decode(&result)
+
+	if err != nil {
+		return fmt.Errorf("error unmarshal data from bitcoind-ctl api response")
+	}
+
+	return nil
 }
