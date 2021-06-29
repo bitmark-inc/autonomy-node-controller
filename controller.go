@@ -490,53 +490,71 @@ func (c *Controller) removeMember(memberDID string) (map[string]string, error) {
 	return map[string]string{"status": "ok"}, nil
 }
 
-func (c *Controller) startBitcoind() (map[string]string, error) {
+func (c *Controller) startBitcoind() (map[string]interface{}, error) {
 	req, err := http.NewRequest("POST", viper.GetString("bitcoind-ctl.endpoint")+"/start", nil)
 	if err != nil {
-		return nil, err
+		log.WithError(err).Error("fail to create bitcoind-ctl api request")
+		return nil, fmt.Errorf("fail to create bitcoind-ctl api request")
 	}
-	var status string
-	c.getResponseJson(req, &status)
-	return map[string]string{"status": status}, nil
+	var resBody json.RawMessage
+	statusCode, err := c.doHttpRequest(req, &resBody)
+	if err != nil {
+		log.WithError(err).Error("fail to call bitcoind-ctl api")
+		return nil, fmt.Errorf("fail to call bitcoind-ctl api")
+	}
+	return map[string]interface{}{
+		"statusCode":   statusCode,
+		"responseBody": resBody,
+	}, nil
 }
 
-func (c *Controller) stopBitcoind() (map[string]string, error) {
+func (c *Controller) stopBitcoind() (map[string]interface{}, error) {
 	req, err := http.NewRequest("POST", viper.GetString("bitcoind-ctl.endpoint")+"/stop", nil)
 	if err != nil {
-		return nil, err
+		log.WithError(err).Error("fail to create bitcoind-ctl api request")
+		return nil, fmt.Errorf("fail to create bitcoind-ctl api request")
 	}
-	var status string
-	c.getResponseJson(req, &status)
-	return map[string]string{"status": status}, nil
+	var resBody json.RawMessage
+	statusCode, err := c.doHttpRequest(req, &resBody)
+	if err != nil {
+		log.WithError(err).Error("fail to call bitcoind-ctl api")
+		return nil, fmt.Errorf("fail to call bitcoind-ctl api")
+	}
+	return map[string]interface{}{
+		"statusCode":   statusCode,
+		"responseBody": resBody,
+	}, nil
 }
 
-// TODO: wait for api response structure
-func (c *Controller) getBitcoindStatus() (map[string]string, error) {
+func (c *Controller) getBitcoindStatus() (map[string]interface{}, error) {
 	req, err := http.NewRequest("GET", viper.GetString("bitcoind-ctl.endpoint")+"/status", nil)
 	if err != nil {
-		return nil, err
+		log.WithError(err).Error("fail to create bitcoind-ctl api request")
+		return nil, fmt.Errorf("fail to create bitcoind-ctl api request")
 	}
-	var resp string
-	c.getResponseJson(req, &resp)
-	return map[string]string{"status": resp}, nil
+	var resBody json.RawMessage
+	statusCode, err := c.doHttpRequest(req, &resBody)
+	if err != nil {
+		log.WithError(err).Error("fail to call bitcoind-ctl api")
+		return nil, fmt.Errorf("fail to call bitcoind-ctl api")
+	}
+	return map[string]interface{}{
+		"statusCode":   statusCode,
+		"responseBody": resBody,
+	}, nil
 }
 
-func (c *Controller) getResponseJson(req *http.Request, result interface{}) error {
+func (c *Controller) doHttpRequest(req *http.Request, resBody *json.RawMessage) (int, error) {
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
-		return err
+		return 0, err
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode != 200 {
-		return fmt.Errorf("fail to request bitcoind-ctl api")
-	}
-
-	err = json.NewDecoder(resp.Body).Decode(&result)
-
+	*resBody, err = ioutil.ReadAll(resp.Body)
 	if err != nil {
-		return fmt.Errorf("error unmarshal data from bitcoind-ctl api response")
+		return 0, err
 	}
 
-	return nil
+	return resp.StatusCode, nil
 }
