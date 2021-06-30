@@ -491,7 +491,7 @@ func (c *Controller) removeMember(memberDID string) (map[string]string, error) {
 }
 
 func (c *Controller) startBitcoind() (map[string]interface{}, error) {
-	req, err := http.NewRequest("POST", viper.GetString("bitcoind-ctl.endpoint")+"/start", nil)
+	req, err := http.NewRequest("POST", viper.GetString("bitcoind_ctl.endpoint")+"/start", nil)
 	if err != nil {
 		log.WithError(err).Error("fail to create bitcoind-ctl api request")
 		return nil, fmt.Errorf("fail to create bitcoind-ctl api request")
@@ -509,7 +509,7 @@ func (c *Controller) startBitcoind() (map[string]interface{}, error) {
 }
 
 func (c *Controller) stopBitcoind() (map[string]interface{}, error) {
-	req, err := http.NewRequest("POST", viper.GetString("bitcoind-ctl.endpoint")+"/stop", nil)
+	req, err := http.NewRequest("POST", viper.GetString("bitcoind_ctl.endpoint")+"/stop", nil)
 	if err != nil {
 		log.WithError(err).Error("fail to create bitcoind-ctl api request")
 		return nil, fmt.Errorf("fail to create bitcoind-ctl api request")
@@ -527,7 +527,7 @@ func (c *Controller) stopBitcoind() (map[string]interface{}, error) {
 }
 
 func (c *Controller) getBitcoindStatus() (map[string]interface{}, error) {
-	req, err := http.NewRequest("GET", viper.GetString("bitcoind-ctl.endpoint")+"/status", nil)
+	req, err := http.NewRequest("GET", viper.GetString("bitcoind_ctl.endpoint")+"/status", nil)
 	if err != nil {
 		log.WithError(err).Error("fail to create bitcoind-ctl api request")
 		return nil, fmt.Errorf("fail to create bitcoind-ctl api request")
