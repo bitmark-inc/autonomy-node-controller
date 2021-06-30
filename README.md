@@ -187,3 +187,67 @@ Bitcoin JSON RPC payload. Take `getblockchaininfo` as an example:
   "status": "ok"
 }
 ```
+
+---
+
+### start_bitcoind
+
+#### Args
+
+```
+{}
+```
+
+#### Returns
+
+```
+{
+  "ok": 1
+}
+```
+
+---
+
+---
+
+### stop_bitcoind
+
+#### Args
+
+```
+{}
+```
+
+#### Returns
+
+```
+{
+  "ok": 1
+}
+```
+
+---
+
+---
+
+### stop_bitcoind
+
+#### Args
+
+```
+{}
+```
+
+#### get_bitcoind_status
+
+```
+{
+  "best_block":2006698,
+  "sync_progress": 0.99995
+}
+```
+```
+{
+  "error":"bitcoind process is not ready"
+}
+```
