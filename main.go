@@ -74,17 +74,17 @@ func main() {
 	// The goroutine will continuously check bitcoind usage and auto close bitcoind if the client isn't active.
 	go func(checkInterval time.Duration) {
 		for {
-			status, err := controller.getBitcoindStatus()
-			if err != nil {
-				log.WithError(err).Error("fail to auto check bitcoind status")
-				time.Sleep(checkInterval)
-				continue
-			}
-			statusDown, _ := json.RawMessage(`{"error":"bitcoind process is not ready"}`).MarshalJSON()
-			currentStatus, _ := status["responseBody"].(json.RawMessage).MarshalJSON()
-			if string(currentStatus[:]) != string(statusDown[:]) {
-				autoCloseTime := time.Now().Add(time.Minute * time.Duration(-viper.GetInt("bitcoind_ctl.suspending_duration"))).Unix()
-				if controller.LastActiveTime.Unix() < autoCloseTime {
+			autoCloseTime := time.Now().Add(time.Minute * time.Duration(-viper.GetInt("bitcoind_ctl.suspending_duration"))).Unix()
+			if controller.LastActiveTime.Unix() < autoCloseTime {
+				status, err := controller.getBitcoindStatus()
+				if err != nil {
+					log.WithError(err).Error("fail to auto check bitcoind status")
+					time.Sleep(checkInterval)
+					continue
+				}
+				statusDown, _ := json.RawMessage(`{"error":"bitcoind process is not ready"}`).MarshalJSON()
+				currentStatus, _ := status["responseBody"].(json.RawMessage).MarshalJSON()
+				if string(currentStatus[:]) != string(statusDown[:]) {
 					resp, err := controller.stopBitcoind()
 					if err != nil {
 						log.WithError(err).Error("fail to auto stop bitcoind")
