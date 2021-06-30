@@ -82,9 +82,10 @@ func main() {
 					time.Sleep(checkInterval)
 					continue
 				}
-				statusDown, _ := json.RawMessage(`{"error":"bitcoind process is not ready"}`).MarshalJSON()
+				statusNotready, _ := json.RawMessage(`{"error":"bitcoind process is not ready"}`).MarshalJSON()
+				statusDown, _ := json.RawMessage(`{"error":"bitcoind is stopped"}`).MarshalJSON()
 				currentStatus, _ := status["responseBody"].(json.RawMessage).MarshalJSON()
-				if string(currentStatus[:]) != string(statusDown[:]) {
+				if string(currentStatus[:]) != string(statusDown[:]) && string(currentStatus[:]) != string(statusNotready[:]) {
 					resp, err := controller.stopBitcoind()
 					if err != nil {
 						log.WithError(err).Error("fail to auto stop bitcoind")
