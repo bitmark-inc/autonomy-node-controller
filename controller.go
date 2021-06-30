@@ -58,10 +58,11 @@ type FinishPSBTRPCParams struct {
 }
 
 type Controller struct {
-	ownerDID   string
-	httpClient *http.Client
-	Identity   *PodIdentity
-	store      Store
+	ownerDID       string
+	httpClient     *http.Client
+	Identity       *PodIdentity
+	store          Store
+	LastActiveTime time.Time
 }
 
 func NewController(ownerDID string, i *PodIdentity) *Controller {
@@ -70,14 +71,16 @@ func NewController(ownerDID string, i *PodIdentity) *Controller {
 		httpClient: &http.Client{
 			Timeout: 10 * time.Second,
 		},
-		Identity: i,
-		store:    NewBoltStore(config.AbsoluteApplicationFilePath(viper.GetString("db_name"))),
+		Identity:       i,
+		store:          NewBoltStore(config.AbsoluteApplicationFilePath(viper.GetString("db_name"))),
+		LastActiveTime: time.Now(),
 	}
 }
 
 // Process handles messages from clients and returns a response message
 func (c *Controller) Process(m *messaging.Message) [][]byte {
 	defer func() {
+		c.LastActiveTime = time.Now()
 		if r := recover(); r != nil {
 			log.WithField("recover", r).Error("panic caught")
 		}
