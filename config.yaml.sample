@@ -26,3 +26,4 @@ bitcoind:
 
 bitcoind_ctl:
   endpoint: http://localhost:8888/bitcoind
+  suspending_duration: 
