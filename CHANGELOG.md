@@ -10,6 +10,12 @@
 
 ### Fixed
 
+## [0.0.6] - 2021-07-05
+
+### Fixed
+
+- Fix the parameter name used for WebSocket command send_messages.
+
 ## [0.0.5] - 2021-06-18
 
 ### Fixed
