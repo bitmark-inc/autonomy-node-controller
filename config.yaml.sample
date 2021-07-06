@@ -23,3 +23,7 @@ bitcoind:
   rpcconnect: http://localhost:8332
   rpcuser: username
   rpcpassword: password
+
+api_endpoint: "https://autonomy-wallet.bitmark.com"
+
+server_port: "8011"
