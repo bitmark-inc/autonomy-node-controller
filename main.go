@@ -15,6 +15,7 @@ import (
 	"time"
 
 	jwt "github.com/dgrijalva/jwt-go"
+	"github.com/gin-gonic/gin"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
 
@@ -104,6 +105,12 @@ func main() {
 			}
 		}
 	}(time.Minute)
+
+	go func() {
+		router := gin.New()
+		router.POST("/tx-notification", controller.transactionNotify)
+		router.Run(":" + viper.GetString("server_port"))
+	}()
 
 	interrupt := make(chan os.Signal, 1)
 	signal.Notify(interrupt, os.Interrupt)
