@@ -280,6 +280,18 @@ func (c *apiClient) getAvailablePreKeyCount(ctx context.Context) (int, error) {
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
+		dumpedRequest, err := httputil.DumpRequest(req, true)
+		if err != nil {
+			c.log.Error("unable to dump the request")
+		}
+		c.log.WithField("req", string(dumpedRequest)).Debug("get recipient keys")
+
+		dumpedResponse, err := httputil.DumpResponse(resp, true)
+		if err != nil {
+			c.log.Error("unable to dump the response")
+		}
+		c.log.WithContext(ctx).WithField("resp", string(dumpedResponse)).Debug("get recipient keys")
+
 		return 0, errors.New("unable to get keys")
 	}
 
