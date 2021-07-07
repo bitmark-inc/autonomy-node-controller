@@ -9,10 +9,8 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"io/ioutil"
 	"net/http"
-	"net/url"
 
 	"github.com/gin-gonic/gin"
 	log "github.com/sirupsen/logrus"
@@ -29,20 +27,8 @@ func (c *Controller) transactionNotify(context *gin.Context) {
 	if err := context.Bind(&req); err != nil {
 		responseWithError(context, err, "fail to bind request params")
 	}
-
-	u, err := url.Parse(viper.GetString("bitcoind.rpcconnect"))
-	if err != nil {
-		responseWithError(context, err, "fail to parse bitcoind rpcconnect")
-	}
-
-	bitcoindURL := fmt.Sprintf(
-		"http://%s:%s@%s:%s",
-		viper.GetString("bitcoind.rpcuser"),
-		viper.GetString("bitcoind.rpcpassword"),
-		u.Hostname(),
-		u.Port(),
-	)
-	tx, err := bitcoind.GetTransaction(bitcoindURL, req.TxID)
+	client, err := bitcoind.NewHttpRPCClient(c.httpClient)
+	tx, err := client.GetTransaction(req.TxID)
 	if err != nil {
 		logFields := map[string]interface{}{
 			"txid": req.TxID,
@@ -53,11 +39,10 @@ func (c *Controller) transactionNotify(context *gin.Context) {
 	// forloop vins to get addresses
 	vins := make([]string, 0)
 	for _, vin := range tx.Decoded.Vins {
-		addr, err := getVinAddresses(bitcoindURL, vin.TxID, int(vin.Vout))
+		addr, err := getVinAddresses(client, vin.TxID, int(vin.Vout))
 		if err != nil {
 			logFields := map[string]interface{}{
-				"txid":        vin.TxID,
-				"bitcoindURL": bitcoindURL,
+				"txid": vin.TxID,
 			}
 			responseWithError(context, err, "failed to get tx vin address", logFields)
 		}
@@ -126,8 +111,8 @@ func (c *Controller) transactionNotify(context *gin.Context) {
 	context.JSON(200, gin.H{"ok": 1})
 }
 
-func getVinAddresses(bitcoindURL string, txId string, vout int) ([]string, error) {
-	tx, err := bitcoind.GetRawTransaction(bitcoindURL, txId)
+func getVinAddresses(client *bitcoind.HttpBitcoind, txId string, vout int) ([]string, error) {
+	tx, err := client.GetRawTransaction(txId)
 	if err != nil {
 		return nil, err
 	}

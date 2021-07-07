@@ -36,7 +36,7 @@ type TransactionDetails struct {
 	Vout     int     `json:"vout"`
 }
 
-func GetTransaction(url string, txId string) (*Transaction, error) {
+func (c *HttpBitcoind) GetTransaction(txId string) (*Transaction, error) {
 
 	params := make([]interface{}, 3)
 
@@ -44,7 +44,7 @@ func GetTransaction(url string, txId string) (*Transaction, error) {
 	params[1] = true // include_watchonly
 	params[2] = true // verbose - also decode raw data, same as getrawtransaction
 
-	b, err := rpccall(url, "gettransaction", params)
+	b, err := c.rpcCall("gettransaction", params)
 	if err != nil {
 		return nil, err
 	}
