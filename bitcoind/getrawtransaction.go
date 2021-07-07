@@ -42,14 +42,14 @@ type RawTransaction struct {
 	Blocktime     int    `json:"blocktime"`
 }
 
-func GetRawTransaction(url string, txId string) (*RawTransaction, error) {
+func (c *HttpBitcoind) GetRawTransaction(txId string) (*RawTransaction, error) {
 
 	params := make([]interface{}, 2)
 
 	params[0] = txId
 	params[1] = true
 
-	b, err := rpccall(url, "getrawtransaction", params)
+	b, err := c.rpcCall("getrawtransaction", params)
 	if err != nil {
 		return nil, err
 	}

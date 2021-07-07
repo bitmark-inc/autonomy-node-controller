@@ -6,14 +6,11 @@
 package main
 
 import (
-	"bytes"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"net/http"
-	"net/url"
 	"strings"
 	"time"
 
@@ -22,6 +19,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
 
+	"github.com/bitmark-inc/autonomy-pod-controller/bitcoind"
 	"github.com/bitmark-inc/autonomy-pod-controller/config"
 	"github.com/bitmark-inc/autonomy-pod-controller/key"
 	"github.com/bitmark-inc/autonomy-pod-controller/messaging"
@@ -228,35 +226,20 @@ func (c *Controller) bindACK(did string, ackParams BindACKParams) (map[string]st
 
 // bitcoinRPC runs bitcoind rpc for clients
 func (c *Controller) bitcoinRPC(did string, bitcoindParams BitcoindRPCParams) (map[string]interface{}, error) {
-	var reqBody bytes.Buffer
-
-	if err := json.NewEncoder(&reqBody).Encode(bitcoindParams); err != nil {
-		return nil, err
-	}
-
-	// log.WithField("reqBody", reqBody.String()).Info("request body")
-	req, err := http.NewRequest("POST", viper.GetString("bitcoind.rpcconnect"), &reqBody)
+	var params []interface{}
+	err := json.Unmarshal(bitcoindParams.Params, &params)
 	if err != nil {
 		return nil, err
 	}
-	req.SetBasicAuth(viper.GetString("bitcoind.rpcuser"), viper.GetString("bitcoind.rpcpassword"))
 
-	resp, err := c.httpClient.Do(req)
+	client, err := bitcoind.NewHttpRPCClient(c.httpClient)
+	statusCode, responseBody, err := client.Call(bitcoindParams.Method, params)
 	if err != nil {
 		return nil, err
-	}
-	defer resp.Body.Close()
-
-	var responseBody json.RawMessage
-	if resp.StatusCode != 401 {
-		responseBody, err = ioutil.ReadAll(resp.Body)
-		if err != nil {
-			return nil, err
-		}
 	}
 
 	return map[string]interface{}{
-		"statusCode":   resp.StatusCode,
+		"statusCode":   statusCode,
 		"responseBody": responseBody,
 	}, nil
 }
@@ -277,19 +260,7 @@ func (c *Controller) createWallet(incompleteDescriptor string) (map[string]strin
 		return nil, err
 	}
 
-	u, err := url.Parse(viper.GetString("bitcoind.rpcconnect"))
-	if err != nil {
-		return nil, err
-	}
-
-	connCfg := &rpcclient.ConnConfig{
-		Host:         fmt.Sprintf("%s:%s", u.Hostname(), u.Port()),
-		User:         viper.GetString("bitcoind.rpcuser"),
-		Pass:         viper.GetString("bitcoind.rpcpassword"),
-		HTTPPostMode: true,
-		DisableTLS:   true,
-	}
-	client, err := rpcclient.New(connCfg, nil)
+	client, err := bitcoind.NewBtcdRPCClient()
 	if err != nil {
 		return nil, err
 	}
@@ -412,18 +383,7 @@ func (c *Controller) createWallet(incompleteDescriptor string) (map[string]strin
 
 // finishPSBT finalizes the PSBT and broadcasts the transaction
 func (c *Controller) finishPSBT(psbt string) (map[string]string, error) {
-	u, err := url.Parse(viper.GetString("bitcoind.rpcconnect"))
-	if err != nil {
-		return nil, err
-	}
-	connCfg := &rpcclient.ConnConfig{
-		Host:         fmt.Sprintf("%s:%s", u.Hostname(), u.Port()),
-		User:         viper.GetString("bitcoind.rpcuser"),
-		Pass:         viper.GetString("bitcoind.rpcpassword"),
-		HTTPPostMode: true,
-		DisableTLS:   true,
-	}
-	client, err := rpcclient.New(connCfg, nil)
+	client, err := bitcoind.NewBtcdRPCClient()
 	if err != nil {
 		return nil, err
 	}

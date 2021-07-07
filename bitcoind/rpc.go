@@ -10,9 +10,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"net/http"
 	"sync/atomic"
-	"time"
 
 	log "github.com/sirupsen/logrus"
 )
@@ -24,47 +22,20 @@ type rpc struct {
 	Params  []interface{} `json:"params"`
 }
 
-var sequence uint32
-var httpClient = &http.Client{
-	Timeout: 30 * time.Second,
-}
-
 type RPCResult struct {
 	Result json.RawMessage
 	Error  map[string]interface{}
 }
 
-func rpccall(url string, method string, params []interface{}) (json.RawMessage, error) {
-
-	id := int(atomic.AddUint32(&sequence, 1) & 0xffff)
-
-	call := rpc{
-		Jsonrpc: "1.0",
-		Id:      id,
-		Method:  method,
-		Params:  params,
-	}
-
-	rpc, err := json.Marshal(call)
+func (c *HttpBitcoind) rpcCall(method string, params []interface{}) (json.RawMessage, error) {
+	status, body, err := c.Call(method, params)
 	if err != nil {
 		return nil, err
 	}
 
-	log.Debugf("call: %s", rpc)
-
-	buffer := bytes.NewReader(rpc)
-	resp, err := httpClient.Post(url, "application/json", buffer)
-	if err != nil {
-		log.Error(err)
-		return nil, fmt.Errorf("bitcoind request failed")
+	if status == 401 {
+		return nil, fmt.Errorf("%s", "bitcoind return 401 status code")
 	}
-	defer resp.Body.Close()
-
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return nil, err
-	}
-	log.Debugf("body: %s\n", body)
 
 	var v RPCResult
 	err = json.Unmarshal(body, &v)
@@ -78,4 +49,41 @@ func rpccall(url string, method string, params []interface{}) (json.RawMessage, 
 	}
 
 	return v.Result, nil
+}
+
+func (c *HttpBitcoind) Call(method string, params []interface{}) (int, json.RawMessage, error) {
+	id := int(atomic.AddUint32(c.sequence, 1) & 0xffff)
+
+	call := rpc{
+		Jsonrpc: "1.0",
+		Id:      id,
+		Method:  method,
+		Params:  params,
+	}
+
+	rpc, err := json.Marshal(call)
+	if err != nil {
+		return 0, nil, err
+	}
+
+	log.Debugf("call: %s", rpc)
+
+	buffer := bytes.NewReader(rpc)
+	resp, err := c.HttpClient.Post(c.serverURL, "application/json", buffer)
+	if err != nil {
+		log.Error(err)
+		return 0, nil, fmt.Errorf("bitcoind request failed")
+	}
+	defer resp.Body.Close()
+
+	var body json.RawMessage
+	if resp.StatusCode != 401 {
+		body, err = ioutil.ReadAll(resp.Body)
+		if err != nil {
+			return resp.StatusCode, nil, err
+		}
+		log.Debugf("body: %s\n", body)
+	}
+
+	return resp.StatusCode, body, nil
 }
