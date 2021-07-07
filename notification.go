@@ -100,7 +100,7 @@ func (c *Controller) transactionNotify(context *gin.Context) {
 	}
 
 	// start to call notification api
-	notifyURL := viper.GetString("api_endpoint") + "/api/account/notification"
+	notifyURL := viper.GetString("api_endpoint") + "/api/accounts/notification"
 
 	notifyReq, _ := http.NewRequest("POST", notifyURL, body)
 	notifyReq.Header.Add("Content-Type", "application/json")
