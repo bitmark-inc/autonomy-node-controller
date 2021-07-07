@@ -57,7 +57,7 @@ type FinishPSBTRPCParams struct {
 	PSBT string `json:"psbt"`
 }
 
-type BitcoindResponse struct {
+type BitcoindCtlResponse struct {
 	StatusCode   int    `json:"statusCode"`
 	ResponseBody []byte `json:"responseBody"`
 }
@@ -498,7 +498,7 @@ func (c *Controller) removeMember(memberDID string) (map[string]string, error) {
 	return map[string]string{"status": "ok"}, nil
 }
 
-func (c *Controller) startBitcoind() (*BitcoindResponse, error) {
+func (c *Controller) startBitcoind() (*BitcoindCtlResponse, error) {
 	req, err := http.NewRequest("POST", viper.GetString("bitcoind_ctl.endpoint")+"/start", nil)
 	if err != nil {
 		log.WithError(err).Error("fail to create bitcoind-ctl api request")
@@ -512,7 +512,7 @@ func (c *Controller) startBitcoind() (*BitcoindResponse, error) {
 	return result, nil
 }
 
-func (c *Controller) stopBitcoind() (*BitcoindResponse, error) {
+func (c *Controller) stopBitcoind() (*BitcoindCtlResponse, error) {
 	req, err := http.NewRequest("POST", viper.GetString("bitcoind_ctl.endpoint")+"/stop", nil)
 	if err != nil {
 		log.WithError(err).Error("fail to create bitcoind-ctl api request")
@@ -526,7 +526,7 @@ func (c *Controller) stopBitcoind() (*BitcoindResponse, error) {
 	return result, nil
 }
 
-func (c *Controller) getBitcoindStatus() (*BitcoindResponse, error) {
+func (c *Controller) getBitcoindStatus() (*BitcoindCtlResponse, error) {
 	req, err := http.NewRequest("GET", viper.GetString("bitcoind_ctl.endpoint")+"/status", nil)
 	if err != nil {
 		log.WithError(err).Error("fail to create bitcoind-ctl api request")
@@ -540,19 +540,19 @@ func (c *Controller) getBitcoindStatus() (*BitcoindResponse, error) {
 	return result, nil
 }
 
-func (c *Controller) doHttpRequest(req *http.Request) (*BitcoindResponse, error) {
+func (c *Controller) doHttpRequest(req *http.Request) (*BitcoindCtlResponse, error) {
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
-		return &BitcoindResponse{}, err
+		return &BitcoindCtlResponse{}, err
 	}
 	defer resp.Body.Close()
 
 	resBody, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		return &BitcoindResponse{}, err
+		return &BitcoindCtlResponse{}, err
 	}
 
-	return &BitcoindResponse{
+	return &BitcoindCtlResponse{
 		StatusCode:   resp.StatusCode,
 		ResponseBody: resBody,
 	}, nil
