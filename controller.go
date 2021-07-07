@@ -57,6 +57,11 @@ type FinishPSBTRPCParams struct {
 	PSBT string `json:"psbt"`
 }
 
+type BitcoindResponse struct {
+	StatusCode   int    `json:"statusCode"`
+	ResponseBody []byte `json:"responseBody"`
+}
+
 type Controller struct {
 	ownerDID       string
 	httpClient     *http.Client
@@ -493,71 +498,62 @@ func (c *Controller) removeMember(memberDID string) (map[string]string, error) {
 	return map[string]string{"status": "ok"}, nil
 }
 
-func (c *Controller) startBitcoind() (map[string]interface{}, error) {
+func (c *Controller) startBitcoind() (*BitcoindResponse, error) {
 	req, err := http.NewRequest("POST", viper.GetString("bitcoind_ctl.endpoint")+"/start", nil)
 	if err != nil {
 		log.WithError(err).Error("fail to create bitcoind-ctl api request")
 		return nil, fmt.Errorf("fail to create bitcoind-ctl api request")
 	}
-	var resBody json.RawMessage
-	statusCode, err := c.doHttpRequest(req, &resBody)
+	result, err := c.doHttpRequest(req)
 	if err != nil {
 		log.WithError(err).Error("fail to call bitcoind-ctl api")
 		return nil, fmt.Errorf("fail to call bitcoind-ctl api")
 	}
-	return map[string]interface{}{
-		"statusCode":   statusCode,
-		"responseBody": resBody,
-	}, nil
+	return result, nil
 }
 
-func (c *Controller) stopBitcoind() (map[string]interface{}, error) {
+func (c *Controller) stopBitcoind() (*BitcoindResponse, error) {
 	req, err := http.NewRequest("POST", viper.GetString("bitcoind_ctl.endpoint")+"/stop", nil)
 	if err != nil {
 		log.WithError(err).Error("fail to create bitcoind-ctl api request")
 		return nil, fmt.Errorf("fail to create bitcoind-ctl api request")
 	}
-	var resBody json.RawMessage
-	statusCode, err := c.doHttpRequest(req, &resBody)
+	result, err := c.doHttpRequest(req)
 	if err != nil {
 		log.WithError(err).Error("fail to call bitcoind-ctl api")
 		return nil, fmt.Errorf("fail to call bitcoind-ctl api")
 	}
-	return map[string]interface{}{
-		"statusCode":   statusCode,
-		"responseBody": resBody,
-	}, nil
+	return result, nil
 }
 
-func (c *Controller) getBitcoindStatus() (map[string]interface{}, error) {
+func (c *Controller) getBitcoindStatus() (*BitcoindResponse, error) {
 	req, err := http.NewRequest("GET", viper.GetString("bitcoind_ctl.endpoint")+"/status", nil)
 	if err != nil {
 		log.WithError(err).Error("fail to create bitcoind-ctl api request")
 		return nil, fmt.Errorf("fail to create bitcoind-ctl api request")
 	}
-	var resBody json.RawMessage
-	statusCode, err := c.doHttpRequest(req, &resBody)
+	result, err := c.doHttpRequest(req)
 	if err != nil {
 		log.WithError(err).Error("fail to call bitcoind-ctl api")
 		return nil, fmt.Errorf("fail to call bitcoind-ctl api")
 	}
-	return map[string]interface{}{
-		"statusCode":   statusCode,
-		"responseBody": resBody,
-	}, nil
+	return result, nil
 }
 
-func (c *Controller) doHttpRequest(req *http.Request, resBody *json.RawMessage) (int, error) {
+func (c *Controller) doHttpRequest(req *http.Request) (*BitcoindResponse, error) {
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
-		return 0, err
+		return &BitcoindResponse{}, err
 	}
 	defer resp.Body.Close()
 
-	*resBody, err = ioutil.ReadAll(resp.Body)
+	resBody, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		return 0, err
+		return &BitcoindResponse{}, err
 	}
 
-	return resp.StatusCode, nil
+	return &BitcoindResponse{
+		StatusCode:   resp.StatusCode,
+		ResponseBody: resBody,
+	}, nil
 }

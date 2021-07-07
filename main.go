@@ -6,6 +6,7 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"flag"
@@ -82,17 +83,15 @@ func main() {
 					time.Sleep(checkInterval)
 					continue
 				}
-				statusNotready, _ := json.RawMessage(`{"error":"bitcoind process is not ready"}`).MarshalJSON()
-				statusDown, _ := json.RawMessage(`{"error":"bitcoind is stopped"}`).MarshalJSON()
-				currentStatus, _ := status["responseBody"].(json.RawMessage).MarshalJSON()
-				if string(currentStatus[:]) != string(statusDown[:]) && string(currentStatus[:]) != string(statusNotready[:]) {
+				statusNotready := []byte(`{"error":"bitcoind process is not ready"}`)
+				statusDown := []byte(`{"error":"bitcoind is stopped"}`)
+				if !bytes.Equal(status.ResponseBody, statusNotready) && !bytes.Equal(status.ResponseBody, statusDown) {
 					resp, err := controller.stopBitcoind()
 					if err != nil {
 						log.WithError(err).Error("fail to auto stop bitcoind")
 					}
-					if resp["statusCode"].(int) != 200 {
-						respBody, _ := resp["responseBody"].(json.RawMessage).MarshalJSON()
-						log.WithField("response", string(respBody[:])).Error("fail to auto stop bitcoind")
+					if resp.StatusCode != 200 {
+						log.WithField("response", string(resp.ResponseBody)).Error("fail to auto stop bitcoind")
 					}
 				}
 			}

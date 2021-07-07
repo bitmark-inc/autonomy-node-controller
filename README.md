@@ -208,8 +208,6 @@ Bitcoin JSON RPC payload. Take `getblockchaininfo` as an example:
 
 ---
 
----
-
 ### stop_bitcoind
 
 #### Args
@@ -227,16 +225,6 @@ Bitcoin JSON RPC payload. Take `getblockchaininfo` as an example:
 ```
 
 ---
-
----
-
-### stop_bitcoind
-
-#### Args
-
-```
-{}
-```
 
 #### get_bitcoind_status
 
