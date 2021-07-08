@@ -20,18 +20,12 @@ import (
 )
 
 func (c *Controller) transactionNotify(context *gin.Context) {
-	req := struct {
-		TxID string `json:"txid"`
-	}{}
-
-	if err := context.Bind(&req); err != nil {
-		responseWithError(context, err, "fail to bind request params")
-	}
+	txID := context.Param("txid")
 	client, err := bitcoind.NewHttpRPCClient(c.httpClient)
-	tx, err := client.GetTransaction(req.TxID)
+	tx, err := client.GetTransaction(txID)
 	if err != nil {
 		logFields := map[string]interface{}{
-			"txid": req.TxID,
+			"txid": txID,
 		}
 		responseWithError(context, err, "failed to get tx from rpc", logFields)
 	}
