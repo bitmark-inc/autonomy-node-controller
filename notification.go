@@ -28,6 +28,7 @@ func (c *Controller) transactionNotify(context *gin.Context) {
 			"txid": txID,
 		}
 		responseWithError(context, err, "failed to get tx from rpc", logFields)
+		return
 	}
 
 	// forloop vins to get addresses
@@ -39,6 +40,7 @@ func (c *Controller) transactionNotify(context *gin.Context) {
 				"txid": vin.TxID,
 			}
 			responseWithError(context, err, "failed to get tx vin address", logFields)
+			return
 		}
 		vins = append(vins, addr...)
 	}
@@ -76,6 +78,7 @@ func (c *Controller) transactionNotify(context *gin.Context) {
 			"notifyData": notifyData,
 		}
 		responseWithError(context, err, "failed to encode tx", logFields)
+		return
 	}
 
 	// start to call notification api
@@ -91,6 +94,7 @@ func (c *Controller) transactionNotify(context *gin.Context) {
 			"notifyData": notifyData,
 		}
 		responseWithError(context, err, "failed to notify", logFields)
+		return
 	}
 	defer resp.Body.Close()
 
@@ -101,6 +105,7 @@ func (c *Controller) transactionNotify(context *gin.Context) {
 			"body":   string(r),
 		}
 		responseWithError(context, err, "failed to notify", logFields)
+		return
 	}
 	context.JSON(200, gin.H{"ok": 1})
 }

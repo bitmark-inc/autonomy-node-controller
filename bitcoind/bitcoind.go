@@ -13,7 +13,6 @@ import (
 type HttpBitcoind struct {
 	serverURL  string
 	HttpClient *http.Client
-	sequence   *uint32
 }
 
 func NewHttpRPCClient(client *http.Client) (*HttpBitcoind, error) {

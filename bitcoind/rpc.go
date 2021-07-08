@@ -10,16 +10,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"sync/atomic"
 
 	log "github.com/sirupsen/logrus"
 )
 
 type rpc struct {
-	Jsonrpc string        `json:"jsonrpc"`
-	Id      int           `json:"id,string"`
-	Method  string        `json:"method"`
-	Params  []interface{} `json:"params"`
+	Method string        `json:"method"`
+	Params []interface{} `json:"params"`
 }
 
 type RPCResult struct {
@@ -52,13 +49,10 @@ func (c *HttpBitcoind) rpcCall(method string, params []interface{}) (json.RawMes
 }
 
 func (c *HttpBitcoind) Call(method string, params []interface{}) (int, json.RawMessage, error) {
-	id := int(atomic.AddUint32(c.sequence, 1) & 0xffff)
 
 	call := rpc{
-		Jsonrpc: "1.0",
-		Id:      id,
-		Method:  method,
-		Params:  params,
+		Method: method,
+		Params: params,
 	}
 
 	rpc, err := json.Marshal(call)
