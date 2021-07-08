@@ -16,9 +16,9 @@ import (
 	"os/signal"
 	"time"
 
+	messaging "github.com/bitmark-inc/autonomy-messaging-go"
 	"github.com/bitmark-inc/autonomy-pod-controller/config"
 	"github.com/bitmark-inc/autonomy-pod-controller/key"
-	"github.com/bitmark-inc/autonomy-pod-controller/messaging"
 	"github.com/bitmark-inc/secp256k1-go"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/viper"

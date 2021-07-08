@@ -18,8 +18,8 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
 
+	messaging "github.com/bitmark-inc/autonomy-messaging-go"
 	"github.com/bitmark-inc/autonomy-pod-controller/config"
-	"github.com/bitmark-inc/autonomy-pod-controller/messaging"
 )
 
 type RequestCommand struct {
