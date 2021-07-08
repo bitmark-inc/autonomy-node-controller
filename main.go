@@ -108,7 +108,7 @@ func main() {
 
 	go func() {
 		router := gin.New()
-		router.POST("/tx-notification", controller.transactionNotify)
+		router.GET("/tx-notification/:txid", controller.transactionNotify)
 		router.Run(":" + viper.GetString("server_port"))
 	}()
 
