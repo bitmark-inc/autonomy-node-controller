@@ -504,7 +504,7 @@ func (c *Controller) startBitcoind() (*BitcoindCtlResponse, error) {
 		log.WithError(err).Error("fail to create bitcoind-ctl api request")
 		return nil, fmt.Errorf("fail to create bitcoind-ctl api request")
 	}
-	result, err := c.doHttpRequest(req)
+	result, err := c.doBitcoindCtlRequest(req)
 	if err != nil {
 		log.WithError(err).Error("fail to call bitcoind-ctl api")
 		return nil, fmt.Errorf("fail to call bitcoind-ctl api")
@@ -518,7 +518,7 @@ func (c *Controller) stopBitcoind() (*BitcoindCtlResponse, error) {
 		log.WithError(err).Error("fail to create bitcoind-ctl api request")
 		return nil, fmt.Errorf("fail to create bitcoind-ctl api request")
 	}
-	result, err := c.doHttpRequest(req)
+	result, err := c.doBitcoindCtlRequest(req)
 	if err != nil {
 		log.WithError(err).Error("fail to call bitcoind-ctl api")
 		return nil, fmt.Errorf("fail to call bitcoind-ctl api")
@@ -532,7 +532,7 @@ func (c *Controller) getBitcoindStatus() (*BitcoindCtlResponse, error) {
 		log.WithError(err).Error("fail to create bitcoind-ctl api request")
 		return nil, fmt.Errorf("fail to create bitcoind-ctl api request")
 	}
-	result, err := c.doHttpRequest(req)
+	result, err := c.doBitcoindCtlRequest(req)
 	if err != nil {
 		log.WithError(err).Error("fail to call bitcoind-ctl api")
 		return nil, fmt.Errorf("fail to call bitcoind-ctl api")
@@ -540,7 +540,7 @@ func (c *Controller) getBitcoindStatus() (*BitcoindCtlResponse, error) {
 	return result, nil
 }
 
-func (c *Controller) doHttpRequest(req *http.Request) (*BitcoindCtlResponse, error) {
+func (c *Controller) doBitcoindCtlRequest(req *http.Request) (*BitcoindCtlResponse, error) {
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
 		return &BitcoindCtlResponse{}, err
