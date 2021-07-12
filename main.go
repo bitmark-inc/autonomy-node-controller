@@ -73,31 +73,33 @@ func main() {
 	}
 
 	// The goroutine will continuously check bitcoind usage and auto close bitcoind if the client isn't active.
-	go func(checkInterval time.Duration) {
-		for {
-			autoCloseTime := time.Now().Add(time.Minute * time.Duration(-viper.GetInt("bitcoind_ctl.suspending_duration"))).Unix()
-			if controller.LastActiveTime.Unix() < autoCloseTime {
-				status, err := controller.getBitcoindStatus()
-				if err != nil {
-					log.WithError(err).Error("fail to auto check bitcoind status")
-					time.Sleep(checkInterval)
-					continue
-				}
-				statusNotready := []byte(`{"error":"bitcoind process is not ready"}`)
-				statusDown := []byte(`{"error":"bitcoind is stopped"}`)
-				if !bytes.Equal(status.ResponseBody, statusNotready) && !bytes.Equal(status.ResponseBody, statusDown) {
-					resp, err := controller.stopBitcoind()
+	if suspendingDuration := viper.GetInt("bitcoind_ctl.suspending_duration"); suspendingDuration != 0 {
+		go func(checkInterval time.Duration) {
+			for {
+				autoCloseTime := time.Now().Add(time.Minute * time.Duration(-suspendingDuration)).Unix()
+				if controller.LastActiveTime.Unix() < autoCloseTime {
+					status, err := controller.getBitcoindStatus()
 					if err != nil {
-						log.WithError(err).Error("fail to auto stop bitcoind")
+						log.WithError(err).Error("fail to auto check bitcoind status")
+						time.Sleep(checkInterval)
+						continue
 					}
-					if resp.StatusCode != 200 {
-						log.WithField("response", string(resp.ResponseBody)).Error("fail to auto stop bitcoind")
+					statusNotready := []byte(`{"error":"bitcoind process is not ready"}`)
+					statusDown := []byte(`{"error":"bitcoind is stopped"}`)
+					if !bytes.Equal(status.ResponseBody, statusNotready) && !bytes.Equal(status.ResponseBody, statusDown) {
+						resp, err := controller.stopBitcoind()
+						if err != nil {
+							log.WithError(err).Error("fail to auto stop bitcoind")
+						}
+						if resp.StatusCode != 200 {
+							log.WithField("response", string(resp.ResponseBody)).Error("fail to auto stop bitcoind")
+						}
 					}
 				}
+				time.Sleep(checkInterval)
 			}
-			time.Sleep(checkInterval)
-		}
-	}(time.Minute)
+		}(time.Minute)
+	}
 
 	// The goroutine will continuously check auth_token and re-request a new one if
 	// a token is going to be expired.
