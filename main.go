@@ -109,7 +109,7 @@ func main() {
 	go func() {
 		router := gin.New()
 		router.GET("/tx-notification/:txid", controller.transactionNotify)
-		router.Run(":" + viper.GetString("server_port"))
+		router.Run(viper.GetString("server_port"))
 	}()
 
 	interrupt := make(chan os.Signal, 1)
