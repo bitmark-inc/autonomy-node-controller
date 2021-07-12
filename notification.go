@@ -27,7 +27,7 @@ func (c *Controller) transactionNotify(context *gin.Context) {
 		logFields := map[string]interface{}{
 			"txid": txID,
 		}
-		responseWithError(context, err, "failed to get tx from rpc", logFields)
+		replyWithError(context, err, "failed to get tx from rpc", logFields)
 		return
 	}
 
@@ -39,7 +39,7 @@ func (c *Controller) transactionNotify(context *gin.Context) {
 			logFields := map[string]interface{}{
 				"txid": vin.TxID,
 			}
-			responseWithError(context, err, "failed to get tx vin address", logFields)
+			replyWithError(context, err, "failed to get tx vin address", logFields)
 			return
 		}
 		vins = append(vins, addr...)
@@ -77,7 +77,7 @@ func (c *Controller) transactionNotify(context *gin.Context) {
 		logFields := map[string]interface{}{
 			"notifyData": notifyData,
 		}
-		responseWithError(context, err, "failed to encode tx", logFields)
+		replyWithError(context, err, "failed to encode tx", logFields)
 		return
 	}
 
@@ -93,7 +93,7 @@ func (c *Controller) transactionNotify(context *gin.Context) {
 		logFields := map[string]interface{}{
 			"notifyData": notifyData,
 		}
-		responseWithError(context, err, "failed to notify", logFields)
+		replyWithError(context, err, "failed to notify", logFields)
 		return
 	}
 	defer resp.Body.Close()
@@ -104,7 +104,7 @@ func (c *Controller) transactionNotify(context *gin.Context) {
 			"status": resp.StatusCode,
 			"body":   string(r),
 		}
-		responseWithError(context, err, "failed to notify", logFields)
+		replyWithError(context, err, "failed to notify", logFields)
 		return
 	}
 	context.JSON(200, gin.H{"ok": 1})
@@ -126,7 +126,7 @@ func getVinAddresses(client *bitcoind.HttpBitcoind, txId string, vout int) ([]st
 	return addresses, nil
 }
 
-func responseWithError(context *gin.Context, err error, message string, fields ...map[string]interface{}) {
+func replyWithError(context *gin.Context, err error, message string, fields ...map[string]interface{}) {
 	var withFields map[string]interface{}
 	if len(fields) > 0 {
 		withFields = fields[0]
