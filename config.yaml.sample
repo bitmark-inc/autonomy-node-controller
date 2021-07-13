@@ -23,3 +23,7 @@ bitcoind:
   rpcconnect: http://localhost:8332
   rpcuser: username
   rpcpassword: password
+
+bitcoind_ctl:
+  endpoint: http://localhost:8888/bitcoind
+  suspending_duration: 

@@ -15,30 +15,35 @@ const (
 )
 
 var (
-	fullAccessRPCAllowList = map[string]bool{
-		"bind":          true,
-		"bind_ack":      true,
-		"bitcoind":      true,
-		"create_wallet": true,
-		"finish_psbt":   true,
-		"set_member":    true,
-		"remove_member": true,
+	fullAccessCommandAllowList = map[string]bool{
+		"bind":                true,
+		"bind_ack":            true,
+		"bitcoind":            true,
+		"create_wallet":       true,
+		"finish_psbt":         true,
+		"set_member":          true,
+		"remove_member":       true,
+		"start_bitcoind":      true,
+		"stop_bitcoind":       true,
+		"get_bitcoind_status": true,
 	}
-	limitedAccessRPCAllowList = map[string]bool{
-		"bind":     true,
-		"bind_ack": true,
-		"bitcoind": true,
+	limitedAccessCommandAllowList = map[string]bool{
+		"bind":                true,
+		"bind_ack":            true,
+		"bitcoind":            true,
+		"get_bitcoind_status": true,
 	}
-	minimalAccessRPCAllowList = map[string]bool{
-		"bind":     true,
-		"bind_ack": true,
-		"bitcoind": true,
+	minimalAccessCommandAllowList = map[string]bool{
+		"bind":                true,
+		"bind_ack":            true,
+		"bitcoind":            true,
+		"get_bitcoind_status": true,
 	}
 
-	rpcAllowList = map[AccessMode]map[string]bool{
-		AccessModeFull:    fullAccessRPCAllowList,
-		AccessModeLimited: limitedAccessRPCAllowList,
-		AccessModeMinimal: minimalAccessRPCAllowList,
+	commandAllowList = map[AccessMode]map[string]bool{
+		AccessModeFull:    fullAccessCommandAllowList,
+		AccessModeLimited: limitedAccessCommandAllowList,
+		AccessModeMinimal: minimalAccessCommandAllowList,
 	}
 )
 
@@ -66,8 +71,8 @@ var (
 	}
 )
 
-func HasRPCAccess(command string, mode AccessMode) bool {
-	_, ok := rpcAllowList[mode][command]
+func HasCommandAccess(command string, mode AccessMode) bool {
+	_, ok := commandAllowList[mode][command]
 	return ok
 }
 

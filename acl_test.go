@@ -15,19 +15,22 @@ type ACLTestSuite struct {
 	suite.Suite
 }
 
-func (suite *ACLTestSuite) TestHasRPCAccess() {
+func (suite *ACLTestSuite) TestHasCommandAccess() {
 	access := map[string]map[AccessMode]bool{
-		"bind":          {AccessModeFull: true, AccessModeLimited: true, AccessModeMinimal: true},
-		"bind_ack":      {AccessModeFull: true, AccessModeLimited: true, AccessModeMinimal: true},
-		"bitcoind":      {AccessModeFull: true, AccessModeLimited: true, AccessModeMinimal: true},
-		"create_wallet": {AccessModeFull: true},
-		"finish_psbt":   {AccessModeFull: true},
-		"set_member":    {AccessModeFull: true},
-		"remove_member": {AccessModeFull: true},
+		"bind":                {AccessModeFull: true, AccessModeLimited: true, AccessModeMinimal: true},
+		"bind_ack":            {AccessModeFull: true, AccessModeLimited: true, AccessModeMinimal: true},
+		"bitcoind":            {AccessModeFull: true, AccessModeLimited: true, AccessModeMinimal: true},
+		"get_bitcoind_status": {AccessModeFull: true, AccessModeLimited: true, AccessModeMinimal: true},
+		"create_wallet":       {AccessModeFull: true},
+		"finish_psbt":         {AccessModeFull: true},
+		"set_member":          {AccessModeFull: true},
+		"remove_member":       {AccessModeFull: true},
+		"start_bitcoind":      {AccessModeFull: true},
+		"stop_bitcoind":       {AccessModeFull: true},
 	}
-	for rpc, access := range access {
+	for command, access := range access {
 		for _, mode := range []AccessMode{AccessModeNotApplicant, AccessModeFull, AccessModeLimited, AccessModeMinimal} {
-			suite.Equal(access[mode], HasRPCAccess(rpc, mode))
+			suite.Equal(access[mode], HasCommandAccess(command, mode))
 		}
 	}
 }
