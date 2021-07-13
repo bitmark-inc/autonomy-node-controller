@@ -25,3 +25,6 @@ bitcoind:
   rpcpassword: password
 
 server_port: :8011
+
+notification:
+  tx_callback_url: https://autonomy-wallet.bitmark.com
