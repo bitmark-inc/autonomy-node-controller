@@ -55,11 +55,17 @@ type FinishPSBTRPCParams struct {
 	PSBT string `json:"psbt"`
 }
 
+type BitcoindCtlResponse struct {
+	StatusCode   int    `json:"statusCode"`
+	ResponseBody []byte `json:"responseBody"`
+}
+
 type Controller struct {
-	ownerDID   string
-	httpClient *http.Client
-	Identity   *PodIdentity
-	store      Store
+	ownerDID       string
+	httpClient     *http.Client
+	Identity       *PodIdentity
+	store          Store
+	LastActiveTime time.Time
 }
 
 func NewController(ownerDID string, i *PodIdentity) *Controller {
@@ -68,14 +74,16 @@ func NewController(ownerDID string, i *PodIdentity) *Controller {
 		httpClient: &http.Client{
 			Timeout: 10 * time.Second,
 		},
-		Identity: i,
-		store:    NewBoltStore(config.AbsoluteApplicationFilePath(viper.GetString("db_name"))),
+		Identity:       i,
+		store:          NewBoltStore(config.AbsoluteApplicationFilePath(viper.GetString("db_name"))),
+		LastActiveTime: time.Now(),
 	}
 }
 
 // Process handles messages from clients and returns a response message
 func (c *Controller) Process(m *messaging.Message) [][]byte {
 	defer func() {
+		c.LastActiveTime = time.Now()
 		if r := recover(); r != nil {
 			log.WithField("recover", r).Error("panic caught")
 		}
@@ -88,8 +96,8 @@ func (c *Controller) Process(m *messaging.Message) [][]byte {
 
 	accessMode := c.accessMode(m.Source)
 
-	if !HasRPCAccess(req.Command, accessMode) {
-		return CommandResponse(req.ID, nil, errors.New("not allowed to use this RPC"))
+	if !HasCommandAccess(req.Command, accessMode) {
+		return CommandResponse(req.ID, nil, errors.New("not allowed to use this command"))
 	}
 
 	if !c.hasCorrectBindingState(m.Source, req.Command) {
@@ -139,6 +147,15 @@ func (c *Controller) Process(m *messaging.Message) [][]byte {
 			return CommandResponse(req.ID, nil, fmt.Errorf("bad request for remove_member: %s", err.Error()))
 		}
 		resp, err := c.removeMember(params.MemberDID)
+		return CommandResponse(req.ID, resp, err)
+	case "start_bitcoind":
+		resp, err := c.startBitcoind()
+		return CommandResponse(req.ID, resp, err)
+	case "stop_bitcoind":
+		resp, err := c.stopBitcoind()
+		return CommandResponse(req.ID, resp, err)
+	case "get_bitcoind_status":
+		resp, err := c.getBitcoindStatus()
 		return CommandResponse(req.ID, resp, err)
 	case "bitcoind":
 		var params BitcoindRPCParams
@@ -439,4 +456,64 @@ func (c *Controller) removeMember(memberDID string) (map[string]string, error) {
 		return nil, err
 	}
 	return map[string]string{"status": "ok"}, nil
+}
+
+func (c *Controller) startBitcoind() (*BitcoindCtlResponse, error) {
+	req, err := http.NewRequest("POST", viper.GetString("bitcoind_ctl.endpoint")+"/start", nil)
+	if err != nil {
+		log.WithError(err).Error("fail to create bitcoind-ctl api request")
+		return nil, fmt.Errorf("fail to create bitcoind-ctl api request")
+	}
+	result, err := c.doBitcoindCtlRequest(req)
+	if err != nil {
+		log.WithError(err).Error("fail to call bitcoind-ctl api")
+		return nil, fmt.Errorf("fail to call bitcoind-ctl api")
+	}
+	return result, nil
+}
+
+func (c *Controller) stopBitcoind() (*BitcoindCtlResponse, error) {
+	req, err := http.NewRequest("POST", viper.GetString("bitcoind_ctl.endpoint")+"/stop", nil)
+	if err != nil {
+		log.WithError(err).Error("fail to create bitcoind-ctl api request")
+		return nil, fmt.Errorf("fail to create bitcoind-ctl api request")
+	}
+	result, err := c.doBitcoindCtlRequest(req)
+	if err != nil {
+		log.WithError(err).Error("fail to call bitcoind-ctl api")
+		return nil, fmt.Errorf("fail to call bitcoind-ctl api")
+	}
+	return result, nil
+}
+
+func (c *Controller) getBitcoindStatus() (*BitcoindCtlResponse, error) {
+	req, err := http.NewRequest("GET", viper.GetString("bitcoind_ctl.endpoint")+"/status", nil)
+	if err != nil {
+		log.WithError(err).Error("fail to create bitcoind-ctl api request")
+		return nil, fmt.Errorf("fail to create bitcoind-ctl api request")
+	}
+	result, err := c.doBitcoindCtlRequest(req)
+	if err != nil {
+		log.WithError(err).Error("fail to call bitcoind-ctl api")
+		return nil, fmt.Errorf("fail to call bitcoind-ctl api")
+	}
+	return result, nil
+}
+
+func (c *Controller) doBitcoindCtlRequest(req *http.Request) (*BitcoindCtlResponse, error) {
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return &BitcoindCtlResponse{}, err
+	}
+	defer resp.Body.Close()
+
+	resBody, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return &BitcoindCtlResponse{}, err
+	}
+
+	return &BitcoindCtlResponse{
+		StatusCode:   resp.StatusCode,
+		ResponseBody: resBody,
+	}, nil
 }

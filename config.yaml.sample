@@ -24,6 +24,10 @@ bitcoind:
   rpcuser: username
   rpcpassword: password
 
+bitcoind_ctl:
+  endpoint: http://localhost:8888/bitcoind
+  suspending_duration: 
+
 server_port: :8011
 
 notification:

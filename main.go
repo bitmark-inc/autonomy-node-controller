@@ -6,6 +6,7 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"flag"
@@ -70,6 +71,35 @@ func main() {
 		} else {
 			break
 		}
+	}
+
+	// The goroutine will continuously check bitcoind usage and auto close bitcoind if the client isn't active.
+	if suspendingDuration := viper.GetInt("bitcoind_ctl.suspending_duration"); suspendingDuration != 0 {
+		go func(checkInterval time.Duration) {
+			for {
+				autoCloseTime := time.Now().Add(time.Minute * time.Duration(-suspendingDuration)).Unix()
+				if controller.LastActiveTime.Unix() < autoCloseTime {
+					status, err := controller.getBitcoindStatus()
+					if err != nil {
+						log.WithError(err).Error("fail to auto check bitcoind status")
+						time.Sleep(checkInterval)
+						continue
+					}
+					statusNotready := []byte(`{"error":"bitcoind process is not ready"}`)
+					statusDown := []byte(`{"error":"bitcoind is stopped"}`)
+					if !bytes.Equal(status.ResponseBody, statusNotready) && !bytes.Equal(status.ResponseBody, statusDown) {
+						resp, err := controller.stopBitcoind()
+						if err != nil {
+							log.WithError(err).Error("fail to auto stop bitcoind")
+						}
+						if resp.StatusCode != 200 {
+							log.WithField("response", string(resp.ResponseBody)).Error("fail to auto stop bitcoind")
+						}
+					}
+				}
+				time.Sleep(checkInterval)
+			}
+		}(time.Minute)
 	}
 
 	// The goroutine will continuously check auth_token and re-request a new one if
