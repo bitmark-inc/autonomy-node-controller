@@ -30,5 +30,4 @@ bitcoind_ctl:
 
 server_port: :8011
 
-notification:
-  tx_callback_url: https://autonomy-wallet.bitmark.com
+notification_url: https://autonomy-wallet.bitmark.com/api/accounts/notification
