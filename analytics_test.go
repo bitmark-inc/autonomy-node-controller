@@ -20,11 +20,12 @@ func TestAddWeeklyUsageWithoutAnyData(t *testing.T) {
 }
 
 // TestAddWeeklyUsageWithOldData tests if the weekly usage contains the data of
-// the same weekday, it will be added up
+// the same weekday in the same week, it will be added up
 func TestAddWeeklyUsageWithOldData(t *testing.T) {
 	now := time.Now()
 	u := WeeklyUsage{
-		Data: map[time.Weekday]DailyUsage{},
+		Today: now,
+		Data:  map[time.Weekday]DailyUsage{},
 	}
 	u.Data[now.Weekday()] = DailyUsage{
 		now.Hour(): 3,
@@ -41,11 +42,6 @@ func TestAddWeeklyUsageAcrossNextDay(t *testing.T) {
 	u := WeeklyUsage{
 		Today: now.Add(-24 * time.Hour),
 		Data: map[time.Weekday]DailyUsage{
-			// yesterday's usage
-			now.Weekday() - 1: {
-				now.Hour(): 2,
-			},
-			// today's usage
 			now.Weekday(): {
 				now.Hour(): 3,
 			},
