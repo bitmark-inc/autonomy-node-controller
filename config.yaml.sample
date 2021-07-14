@@ -23,3 +23,6 @@ bitcoind:
   rpcconnect: http://localhost:8332
   rpcuser: username
   rpcpassword: password
+
+usage_analytic:
+  flush_interval: 60

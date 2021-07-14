@@ -62,6 +62,9 @@ type Controller struct {
 	httpClient *http.Client
 	Identity   *PodIdentity
 	store      Store
+
+	usageData     *Usage
+	usageAnalytic bool
 }
 
 func NewController(ownerDID string, i *PodIdentity) *Controller {
@@ -96,6 +99,10 @@ func (c *Controller) Process(m *messaging.Message) [][]byte {
 
 	if !c.hasCorrectBindingState(m.Source, req.Command) {
 		return CommandResponse(req.ID, nil, errors.New("incorrect binding state"))
+	}
+
+	if c.usageAnalytic {
+		c.CountRequests(1)
 	}
 
 	log.WithField("command request", req).Debug("parse command")
@@ -479,4 +486,36 @@ func (c *Controller) removeMember(memberDID string) (map[string]string, error) {
 		return nil, err
 	}
 	return map[string]string{"status": "ok"}, nil
+}
+
+// EnableUsageAnalytic will initiate the usage data and starts a goroutine to flush data to
+// controller's storage periodically.
+func (c *Controller) EnableUsageAnalytic(flushInterval time.Duration) error {
+	c.usageAnalytic = true
+
+	u, err := c.store.LoadRequestsUsage()
+	if err != nil {
+		return err
+	}
+
+	c.usageData = u
+
+	go func(flushInterval time.Duration) {
+		for {
+			time.Sleep(flushInterval * time.Second)
+
+			log.WithField("data", c.usageData).Debug("currenet usage")
+
+			if err := c.store.SaveRequestsUsage(c.usageData); err != nil {
+				log.WithError(err).Error("fail to marshal usage data")
+			}
+		}
+	}(flushInterval)
+
+	return nil
+}
+
+// CountRequests logs requests counts for pod controller
+func (c *Controller) CountRequests(n int) {
+	c.usageData.CountRequests(n)
 }

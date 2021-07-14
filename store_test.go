@@ -6,10 +6,13 @@
 package main
 
 import (
+	"encoding/json"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/suite"
+	"go.etcd.io/bbolt"
 )
 
 type StoreTestSuite struct {
@@ -61,6 +64,42 @@ func (s *StoreTestSuite) TestMember() {
 	s.NoError(err)
 	mode = s.store.MemberAccessMode(memberDID)
 	s.Equal(AccessModeNotApplicant, mode)
+}
+
+// TestSaveAndLoadRequestsUsage tests saving and loading usage data
+func (s *StoreTestSuite) TestSaveAndLoadRequestsUsage() {
+	u := &Usage{
+		Weekly: WeeklyUsage{
+			Data: make(map[time.Weekday]DailyUsage),
+		},
+		Monthly: MonthlyUsage{
+			Data: make([]DailyUsage, 0),
+		},
+	}
+	u.CountRequests(1)
+
+	s.NoError(s.store.SaveRequestsUsage(u))
+
+	testUsageBytes, err := json.Marshal(u)
+	s.NoError(err)
+
+	s.store.db.View(func(tx *bbolt.Tx) error {
+		b := tx.Bucket(bucketUsage)
+		s.NotNil(b)
+
+		usageBytes := b.Get(keyRequest)
+		s.NotNil(usageBytes)
+
+		s.EqualValues(testUsageBytes, usageBytes)
+		return nil
+	})
+
+	loadedUsage, err := s.store.LoadRequestsUsage()
+	s.NoError(err)
+
+	loadedUsageBytes, err := json.Marshal(loadedUsage)
+	s.NoError(err)
+	s.EqualValues(testUsageBytes, loadedUsageBytes)
 }
 
 func TestStoreTestSuite(t *testing.T) {

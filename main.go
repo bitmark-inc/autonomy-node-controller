@@ -50,6 +50,13 @@ func main() {
 
 	ownerDID := viper.GetString("owner_did")
 	controller := NewController(ownerDID, i)
+
+	if flushInterval := viper.GetInt64("usage_analytic.flush_interval"); flushInterval > 0 {
+		if err := controller.EnableUsageAnalytic(time.Duration(flushInterval)); err != nil {
+			log.WithError(err).Panic("fail to create or load request usages")
+		}
+	}
+
 	log.WithField("owner_did", ownerDID).
 		WithField("identity", i.DID).
 		WithField("created", created).

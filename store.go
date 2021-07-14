@@ -8,6 +8,7 @@ package main
 import (
 	"bytes"
 	"encoding/binary"
+	"encoding/json"
 
 	bolt "go.etcd.io/bbolt"
 )
@@ -15,6 +16,9 @@ import (
 var (
 	bucketBinding = []byte("bindings")
 	bucketMember  = []byte("members")
+	bucketUsage   = []byte("usages")
+
+	keyRequest = []byte("requests")
 
 	valueTrue  = []byte("true")
 	valueFalse = []byte("false")
@@ -28,6 +32,9 @@ type Store interface {
 	UpdateMemberAccessMode(memberDID string, accessMode AccessMode) error
 	RemoveMember(memberDID string) error
 	MemberAccessMode(memberDID string) AccessMode
+
+	LoadRequestsUsage() (*Usage, error)
+	SaveRequestsUsage(*Usage) error
 }
 
 type BoltStore struct {
@@ -45,6 +52,9 @@ func NewBoltStore(path string) *BoltStore {
 			return err
 		}
 		if _, err := tx.CreateBucketIfNotExists(bucketMember); err != nil {
+			return err
+		}
+		if _, err := tx.CreateBucketIfNotExists(bucketUsage); err != nil {
 			return err
 		}
 		return nil
@@ -120,4 +130,43 @@ func (s *BoltStore) MemberAccessMode(memberDID string) AccessMode {
 		return nil
 	})
 	return mode
+}
+
+// LoadRequestsUsage reads saved usage data from the storage.
+// If the data is not found, it returns an empty Usage object
+func (s *BoltStore) LoadRequestsUsage() (*Usage, error) {
+	var usage Usage
+	if err := s.db.View(func(tx *bolt.Tx) error {
+		b := tx.Bucket(bucketUsage)
+		if b == nil {
+			return bolt.ErrBucketNotFound
+		}
+
+		data := b.Get(keyRequest)
+		if data == nil {
+			return nil
+		}
+
+		return json.Unmarshal(data, &usage)
+	}); err != nil {
+		return nil, err
+	}
+	return &usage, nil
+}
+
+// SaveRequestsUsage saves usage data into storage
+func (s *BoltStore) SaveRequestsUsage(usage *Usage) error {
+	data, err := json.Marshal(usage)
+	if err != nil {
+		return err
+	}
+
+	return s.db.Update(func(tx *bolt.Tx) error {
+		b := tx.Bucket(bucketUsage)
+		if b == nil {
+			return bolt.ErrBucketNotFound
+		}
+
+		return b.Put(keyRequest, []byte(data))
+	})
 }
