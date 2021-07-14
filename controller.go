@@ -504,6 +504,8 @@ func (c *Controller) EnableUsageAnalytic(flushInterval time.Duration) error {
 		for {
 			time.Sleep(flushInterval * time.Second)
 
+			c.usageData.CheckAndUpdateNewDay()
+
 			log.WithField("data", c.usageData).Debug("currenet usage")
 
 			if err := c.store.SaveRequestsUsage(c.usageData); err != nil {

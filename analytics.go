@@ -20,6 +20,14 @@ func (u *Usage) CountRequests(n int) {
 	u.Monthly.CountRequests(n)
 }
 
+// CheckAndUpdateNewDay checks if it is a new day now and
+// do corresponded updates.
+func (u *Usage) CheckAndUpdateNewDay() {
+	now := time.Now()
+	u.Weekly.CheckAndUpdateNewDay(now)
+	u.Monthly.CheckAndUpdateNewDay(now)
+}
+
 // WeeklyUsage is a structure keeps the usage data for a week
 type WeeklyUsage struct {
 	sync.Mutex
@@ -27,18 +35,24 @@ type WeeklyUsage struct {
 	Data  map[time.Weekday]DailyUsage `json:"data"`
 }
 
-// CountRequests counts requests for weekly usage data
-func (w *WeeklyUsage) CountRequests(count int) {
-	w.Lock()
-	defer w.Unlock()
-
-	now := time.Now()
-
+// CheckAndUpdateNewDay checks if now is a new day.
+// If it is new day now, reset records of that day
+func (w *WeeklyUsage) CheckAndUpdateNewDay(now time.Time) {
 	if now.Sub(w.Today) > 24*time.Hour {
+		w.Lock()
+		defer w.Unlock()
 		w.Data[time.Now().Weekday()] = DailyUsage{}
 		w.Today = time.Unix(86400*(now.Unix()/86400), 0)
 	}
+}
 
+// CountRequests counts requests for weekly usage data
+func (w *WeeklyUsage) CountRequests(count int) {
+	now := time.Now()
+	w.CheckAndUpdateNewDay(now)
+
+	w.Lock()
+	defer w.Unlock()
 	if _, ok := w.Data[time.Now().Weekday()]; !ok {
 		w.Data[time.Now().Weekday()] = DailyUsage{}
 	}
@@ -53,21 +67,28 @@ type MonthlyUsage struct {
 	Data  []DailyUsage `json:"data"`
 }
 
-// CountRequests counts requests for monthly usage data
-func (u *MonthlyUsage) CountRequests(count int) {
-	u.Lock()
-	defer u.Unlock()
-
-	now := time.Now()
-	// push a new row if it is a new day
+// CheckAndUpdateNewDay checks if now is a new day.
+// If it is new day now, push a new row of that day
+func (u *MonthlyUsage) CheckAndUpdateNewDay(now time.Time) {
+	// push a new row of a day if it is a new coming day
 	if now.Sub(u.Today) > 24*time.Hour {
+		u.Lock()
+		defer u.Unlock()
 		if len(u.Data) >= 30 {
 			u.Data = u.Data[1:]
 		}
 		u.Data = append(u.Data, DailyUsage{})
 		u.Today = time.Unix(86400*(now.Unix()/86400), 0)
 	}
+}
 
+// CountRequests counts requests for monthly usage data
+func (u *MonthlyUsage) CountRequests(count int) {
+	now := time.Now()
+	u.CheckAndUpdateNewDay(now)
+
+	u.Lock()
+	defer u.Unlock()
 	lastDayUsage := u.Data[len(u.Data)-1]
 	lastDayUsage[now.Hour()] += count
 }
