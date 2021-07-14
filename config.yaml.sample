@@ -27,3 +27,7 @@ bitcoind:
 bitcoind_ctl:
   endpoint: http://localhost:8888/bitcoind
   suspending_duration: 
+
+server_port: :8011
+
+notification_url: https://autonomy-wallet.bitmark.com/api/accounts/notification
