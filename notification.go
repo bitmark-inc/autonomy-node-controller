@@ -64,7 +64,7 @@ func (c *Controller) transactionNotify(context *gin.Context) {
 		"en": "Transaction Notification",
 	}
 	notifyData := map[string]interface{}{
-		"txID":          tx.TxID,
+		"txid":          tx.TxID,
 		"confirmations": tx.Confirmations,
 		"category":      tx.Details[0].Category,
 		"amount":        tx.Amount,
