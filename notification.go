@@ -64,12 +64,12 @@ func (c *Controller) transactionNotify(context *gin.Context) {
 		"en": "Transaction Notification",
 	}
 	notifyData := map[string]interface{}{
-		"TxID":          tx.TxID,
-		"Confirmations": tx.Confirmations,
-		"Category":      tx.Details[0].Category,
-		"Amount":        tx.Amount,
-		"Vins":          vins,
-		"Vouts":         vouts,
+		"txID":          tx.TxID,
+		"confirmations": tx.Confirmations,
+		"category":      tx.Details[0].Category,
+		"amount":        tx.Amount,
+		"vins":          vins,
+		"vouts":         vouts,
 	}
 
 	body := new(bytes.Buffer)
