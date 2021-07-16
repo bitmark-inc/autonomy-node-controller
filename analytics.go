@@ -18,6 +18,18 @@ type Usage struct {
 	Monthly MonthlyUsage `json:"Monthly"`
 }
 
+// NewUsage returns a empty usage object
+func NewUsage() *Usage {
+	return &Usage{
+		Weekly: WeeklyUsage{
+			Data: make(map[time.Weekday]DailyUsage),
+		},
+		Monthly: MonthlyUsage{
+			Data: make([]DailyUsage, 0),
+		},
+	}
+}
+
 // CountRequests counts requests for usage analytic
 func (u *Usage) CountRequests(n int) {
 	// Increment the hourly usage of last week

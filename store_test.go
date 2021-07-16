@@ -9,7 +9,6 @@ import (
 	"encoding/json"
 	"os"
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/suite"
 	"go.etcd.io/bbolt"
@@ -68,14 +67,14 @@ func (s *StoreTestSuite) TestMember() {
 
 // TestSaveAndLoadRequestsUsage tests saving and loading usage data
 func (s *StoreTestSuite) TestSaveAndLoadRequestsUsage() {
-	u := &Usage{
-		Weekly: WeeklyUsage{
-			Data: make(map[time.Weekday]DailyUsage),
-		},
-		Monthly: MonthlyUsage{
-			Data: make([]DailyUsage, 0),
-		},
+
+	// test `loadRequest` with a fresh db (no usage data)
+	{
+		_, err := s.store.LoadRequestsUsage()
+		s.Error(err, ErrKeyNotFound.Error())
 	}
+
+	u := NewUsage()
 	u.CountRequests(1)
 
 	s.NoError(s.store.SaveRequestsUsage(u))

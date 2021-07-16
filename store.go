@@ -9,9 +9,12 @@ import (
 	"bytes"
 	"encoding/binary"
 	"encoding/json"
+	"fmt"
 
 	bolt "go.etcd.io/bbolt"
 )
+
+var ErrKeyNotFound = fmt.Errorf("key not found")
 
 var (
 	bucketBinding = []byte("bindings")
@@ -144,7 +147,7 @@ func (s *BoltStore) LoadRequestsUsage() (*Usage, error) {
 
 		data := b.Get(keyRequest)
 		if data == nil {
-			return nil
+			return ErrKeyNotFound
 		}
 
 		return json.Unmarshal(data, &usage)

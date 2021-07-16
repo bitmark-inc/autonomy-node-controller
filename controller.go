@@ -495,7 +495,12 @@ func (c *Controller) EnableUsageAnalytic(flushInterval time.Duration) error {
 
 	u, err := c.store.LoadRequestsUsage()
 	if err != nil {
-		return err
+		if err == ErrKeyNotFound {
+			// set a default usage object if the key it not found in the storage
+			u = NewUsage()
+		} else {
+			return err
+		}
 	}
 
 	c.usageData = u
