@@ -10,6 +10,17 @@
 
 ### Fixed
 
+## [0.0.7] - 2021-07-20
+
+### Added
+
+- Integrate the new [bitcoind-ctl](https://github.com/bitmark-inc/bitcoind-ctl) service to separate the Autonomy pod into three independent services: pod-controller, bitcoind-ctl, bitcoind
+- Add a new API for bitcoind to report new transaction instead of report to the Autonomy API directly.
+
+### Changed
+
+- Move the messaging library to external repository
+
 ## [0.0.6] - 2021-07-05
 
 ### Fixed
