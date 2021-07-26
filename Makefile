@@ -12,6 +12,9 @@ default: build
 pod-controller:
 	go build -o bin/pod-controller
 
+init-pod-controller: pod-controller
+	./bin/pod-controller -c config.yaml init
+
 run-pod-controller: pod-controller
 	./bin/pod-controller -c config.yaml
 
