@@ -16,6 +16,16 @@ bitcoind via whisper protocol.
 make pod-controller
 ```
 
+## Initialize
+
+Every pod controller has its own identity. It normally set up before a pod is running. Here is a subcommand to set it up before hand:
+
+```
+make init-pod-controller
+```
+
+It will return its pod identity. You can use it for pairing with your Autonomy client.
+
 ## Run
 
 First, create a `config.yaml` by copy `config.yaml.sample` and configure it properly. Then run:

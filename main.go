@@ -10,6 +10,7 @@ import (
 	"encoding/json"
 	"errors"
 	"flag"
+	"fmt"
 	"net/http"
 	"os"
 	"os/signal"
@@ -48,6 +49,14 @@ func main() {
 	i, created, err := CreateOrLoadPodIdentityFromKey(config.AbsoluteApplicationFilePath(viper.GetString("auth_key_file")))
 	if err != nil {
 		log.WithError(err).Panic("fail to create or load identity")
+	}
+
+	command := flag.Arg(0)
+	switch command {
+	case "init":
+		fmt.Println(i.DID)
+		return
+	default:
 	}
 
 	ownerDID := viper.GetString("owner_did")
