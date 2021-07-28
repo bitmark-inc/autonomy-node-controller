@@ -19,6 +19,9 @@ RUN --mount=type=cache,target=/go/pkg/mod --mount=type=cache,target=/root/.cache
 
 FROM alpine:3.10.3
 ARG dist=0.0
+
+RUN apk add --no-cache curl
+
 COPY --from=build /go/bin/autonomy-pod-controller /autonomy-pod-controller
 
 ADD config.yaml.sample /.config/pod_controller.yaml
